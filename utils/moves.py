@@ -1,12 +1,9 @@
-board_locations = [[letter + number for number in "12345678"] for letter in "abcdefgh"]
-
-
-def flatten(xss):
+def __flatten(xss):
     return [x for xs in xss for x in xs]
 
 
-def get_all_moves():
-    positive_deltas = flatten(
+def __get_all_moves():
+    positive_deltas = __flatten(
         (
             # King movements (distance 1)
             [(0, 1), (1, 1), (1, 0)],
@@ -20,11 +17,14 @@ def get_all_moves():
             # Pawns moves are covered by the king (forward and en-passant) and rook (2-forward)
         )
     )
-    all_deltas = flatten(
+    all_deltas = __flatten(
         [((a, b), (-a, b), (a, -b), (-a, -b)) for a, b in positive_deltas]
     )
 
     piece_movements = set(["O-O", "O-O-O"])
+    board_locations = [
+        [letter + number for number in "12345678"] for letter in "abcdefgh"
+    ]
     for i, row in enumerate(board_locations):
         for j, square in enumerate(row):
             for a, b in all_deltas:
@@ -33,22 +33,22 @@ def get_all_moves():
     return sorted(piece_movements)
 
 
-class MoveEncoder:
-    def __init__(self):
-        self.moves = get_all_moves()
-        self.moves_to_idx = {move: idx for idx, move in enumerate(self.moves)}
+__moves = __get_all_moves()
+__moves_to_idx = {move: idx for idx, move in enumerate(__moves)}
 
-    def encode(self, move: str) -> int:
-        """Converts a UCI move to an index."""
-        if move.startswith("O"):
-            return self.moves_to_idx[move]
-        return self.moves_to_idx[move[:4]]
 
-    def decode(self, move_idx: int) -> str:
-        """Converts an index to a UCI move."""
-        return self.moves[move_idx]
+def encode(move: str) -> int:
+    """Converts a UCI move to an index."""
+    if move.startswith("O"):
+        return __moves_to_idx[move]
+    return __moves_to_idx[move[:4]]
+
+
+def decode(self, move_idx: int) -> str:
+    """Converts an index to a UCI move."""
+    return self.moves[move_idx]
 
 
 if __name__ == "__main__":
-    print(sorted(get_all_moves()))
-    print(len(get_all_moves()))
+    print(sorted(__moves))
+    print(len(__moves))

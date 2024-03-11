@@ -1,2 +1,3 @@
 data/*.zst
+data/*.txt
 __pycache__/

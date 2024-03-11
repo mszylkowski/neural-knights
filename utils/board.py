@@ -1,9 +1,11 @@
-from chess import Board
+from chess import BaseBoard
 import numpy as np
 
 
-def board_to_np(board: Board) -> np.ndarray:
+def board_to_np(board: BaseBoard) -> np.ndarray:
+    """Convert a Board to a one-hot encoded 12x8x8 numpy array of 0s and 1s."""
     black, white = board.occupied_co
+
     bb = [
         black & board.pawns,
         black & board.knights,
