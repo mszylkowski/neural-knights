@@ -15,9 +15,17 @@ parser.add_argument("--output", "-o", type=argparse.FileType("wb"))
 
 args = parser.parse_args()
 
-print(args)
-
-if args.method == "compress":
+if args.method == "compress" or (args.method is None and args.input.endswith(".txt")):
+    if args.output is None:
+        args.output = open(args.input.name.replace(".txt", ".zst"), "wb")
+    print("Compressing", args.input.name, "to", args.output.name)
     pyzstd.compress_stream(args.input, args.output)
-elif args.method == "decompress":
+elif args.method == "decompress" or (
+    args.method is None and args.input.endswith(".zst")
+):
+    if args.output is None:
+        args.output = open(
+            args.input.name.replace(".zstd", ".txt").replace(".zst", ".txt"), "wb"
+        )
+    print("Decompressing", args.input.name, "to", args.output.name)
     pyzstd.decompress_stream(args.input, args.output)

@@ -48,7 +48,9 @@ def str_to_game(game: str) -> Game | None:
             for move in moves_str:
                 uci = board.push_san(move).uci()
                 rep = board.board_fen()
+                # bitboard = board_to_np(board)
                 moves.append((rep, uci))
+                del board
         elif line.startswith("[BlackElo"):
             elo += int(line[11:-2]) // 2
         elif line.startswith("[WhiteElo"):
@@ -75,14 +77,16 @@ class ChessReader(BinaryIO):
         self.training_size = 0
         self.games = 0
         self.last_part = ""
-        self.pool = Pool(None, initializer=init_worker)
+        self.pool = Pool(1, initializer=init_worker)
         self.storage = storage
 
     def write(self, n: memoryview) -> int:
-        games_str = self.last_part + n.tobytes().decode()
+        games_str = self.last_part + n.tobytes().decode(encoding="ISO-8859-1")
         games = SCORE_SPLITTER.split(games_str)
         self.last_part = games[-1]
-        self.pool.map_async(str_to_game, games[:-1], callback=self.results)
+        self.last_res = self.pool.map_async(
+            str_to_game, games[:-1], callback=self.results
+        )
         return len(n)
 
     def results(self, games):
@@ -96,9 +100,9 @@ class ChessReader(BinaryIO):
         return self.games
 
     def close(self) -> None:
+        self.last_res.get()
         self.pool.close()
         self.pool.join()
-        self.storage.close()
 
 
 def read_pgns_from_zstd(input_stream: BinaryIO, output_stream: TextIO):
@@ -115,7 +119,9 @@ def read_pgns_from_zstd(input_stream: BinaryIO, output_stream: TextIO):
 
     def cb(total_input, total_output, read_data, write_data):
         bar.set(total_input)
-        bar.set_postfix_str(f"{format_number(processor.size())} positions")
+        bar.set_postfix_str(
+            f"{format_number(processor.size())} games, {format_number(processor.training_size)} pos"
+        )
 
     pyzstd.decompress_stream(
         input_stream,
@@ -123,6 +129,7 @@ def read_pgns_from_zstd(input_stream: BinaryIO, output_stream: TextIO):
         callback=cb,
     )
 
+    processor.close()
     bar.close()
 
 
