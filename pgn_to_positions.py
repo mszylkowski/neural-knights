@@ -9,7 +9,6 @@ import pyzstd
 import re
 
 from utils.ProgressBar import ProgressBar, format_number
-from utils.board import board_to_np
 
 LOWEST_ELO = 1400
 HIGHEST_ELO = 1600

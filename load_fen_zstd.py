@@ -44,9 +44,6 @@ class FenReader(BinaryIO):
         self.last_part = lines[-1]
         lines = lines[:-1]
         self.total += len(lines)
-        if self.total >= self.max_positions:
-            lines = lines[: self.max_positions - self.total]
-            self.total = self.max_positions
         self.last_res = self.pool.map_async(
             fen_to_bitboards, lines, callback=self.xys.extend
         )
@@ -62,10 +59,10 @@ class FenReader(BinaryIO):
 
 
 def read_fens(zst_input_stream: BinaryIO, max_positions=inf):
-    processor = FenReader(max_positions=1_000_000)
+    processor = FenReader(max_positions=max_positions)
 
     bar = ProgressBar(
-        total=fstat(input_stream.fileno()).st_size,
+        total=fstat(zst_input_stream.fileno()).st_size,
         desc="Reading PGNs",
         unit="B",
         colour="yellow",
@@ -75,11 +72,12 @@ def read_fens(zst_input_stream: BinaryIO, max_positions=inf):
         bar.set(total_input)
         bar.set_postfix_str(f"{format_number(len(processor))} positions")
 
-    pyzstd.decompress_stream(input_stream, processor, callback=cb)
+    pyzstd.decompress_stream(zst_input_stream, processor, callback=cb)
     bar.close()
     bar = ProgressBar(
         total=processor.total, desc="Processing FENs", unit="positions", colour="green"
     )
+
     while len(processor) < processor.total:
         time.sleep(0.01)
         bar.set(len(processor))

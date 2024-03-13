@@ -2,7 +2,7 @@ def __flatten(xss):
     return [x for xs in xss for x in xs]
 
 
-def __get_all_moves():
+def get_all_moves():
     positive_deltas = __flatten(
         (
             # King movements (distance 1)
@@ -33,7 +33,7 @@ def __get_all_moves():
     return sorted(piece_movements)
 
 
-__moves = __get_all_moves()
+__moves = get_all_moves()
 __moves_to_idx = {move: idx for idx, move in enumerate(__moves)}
 
 
