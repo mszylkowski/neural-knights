@@ -34,14 +34,21 @@ class FenReader(BinaryIO):
         self.last_part = ""
         self.pool = Pool(None, initializer=init_worker)
         self.total = 0
+        self.max_positions = max_positions
 
     def write(self, n: memoryview) -> int:
+        if self.total >= self.max_positions:
+            return len(n)
         lines_str = self.last_part + n.tobytes().decode()
         lines = NEWLINES_SPLITTER.split(lines_str)
         self.last_part = lines[-1]
-        self.total += len(lines) - 1
+        lines = lines[:-1]
+        self.total += len(lines)
+        if self.total >= self.max_positions:
+            lines = lines[: self.max_positions - self.total]
+            self.total = self.max_positions
         self.last_res = self.pool.map_async(
-            fen_to_bitboards, lines[:-1], callback=self.xys.extend
+            fen_to_bitboards, lines, callback=self.xys.extend
         )
         return len(n)
 
@@ -54,14 +61,14 @@ class FenReader(BinaryIO):
         self.pool.join()
 
 
-if __name__ == "__main__":
-    input_stream = open("data/fen_1500_2018-02.fen.zst", "rb")
-    processor = FenReader()
+def read_fens(zst_input_stream: BinaryIO, max_positions=inf):
+    processor = FenReader(max_positions=1_000_000)
 
     bar = ProgressBar(
         total=fstat(input_stream.fileno()).st_size,
         desc="Reading PGNs",
-        unit="lines",
+        unit="B",
+        colour="yellow",
     )
 
     def cb(total_input, total_output, read_data, write_data):
@@ -69,19 +76,27 @@ if __name__ == "__main__":
         bar.set_postfix_str(f"{format_number(len(processor))} positions")
 
     pyzstd.decompress_stream(input_stream, processor, callback=cb)
-    bar.desc = "Processing FENs"
-    bar.total = processor.total
+    bar.close()
+    bar = ProgressBar(
+        total=processor.total, desc="Processing FENs", unit="positions", colour="green"
+    )
     while len(processor) < processor.total:
-        time.sleep(0.1)
+        time.sleep(0.01)
         bar.set(len(processor))
-        bar.set_postfix_str(f"{format_number(len(processor))} positions")
 
     processor.close()
     bar.close()
 
-    print(f"Found {len(processor)} training positions")
-
     xs, ys = zip(*processor.xys)
-    print(len(xs), len(ys))
     xs_arr = np.array(xs)
-    print(xs_arr.shape, format_number(xs_arr.nbytes) + "B")
+    ys_arr = np.array(ys)
+
+    return xs_arr, ys_arr
+
+
+if __name__ == "__main__":
+    input_stream = open("data/fen_1500_2018-02.fen.zst", "rb")
+    xs, ys = read_fens(input_stream, max_positions=1_000_000)
+    print(
+        f"xs = {xs.shape} ({format_number(xs.nbytes)}B), ys = {ys.shape} ({format_number(ys.nbytes)}b)"
+    )
