@@ -1,3 +1,7 @@
+# This file can load very quickly all the fens in a .fen.zst file and put them
+# all in memory. However, utils.datapipeline is much faster because it doesn't
+# store anything in memory and only reads what's necessary.
+
 from math import inf
 from multiprocessing import Pool
 from os import fstat

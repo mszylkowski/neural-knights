@@ -9,17 +9,17 @@ from torchdata.datapipes.iter import (
     MultiplexerLongest,
     Shuffler,
 )
+from torch.utils.data import IterableDataset
 from torch.utils.data.datapipes.datapipe import IterDataPipe
 from torchdata.datapipes.utils import StreamWrapper
-from pyzstd import ZstdDecompressor as ZstdDec
+from pyzstd import EndlessZstdDecompressor as ZstdDec
 import re
 
-from board import board_to_np
-import moves as MoveEncoder
-from progressbar import ProgressBar
+from utils.board import board_to_np
+import utils.moves as MoveEncoder
+from utils.progressbar import ProgressBar
 
-WINDOW_SIZE = 100_000
-SHUFFLER_SIZE = 10_000
+READ_SIZE = 100_000
 NEWLINES_SPLITTER = re.compile("\r\n+")
 MAX_POOLS = None  # Set to None to use all CPU cores, or to a positive integer to limit the number of pools.
 
@@ -50,12 +50,16 @@ class ZstdDecompressor(IterDataPipe):
 
         def __iter_chunk(self):
             while True:
-                compressed_chunk: ByteString = self.stream.read(WINDOW_SIZE)
+                compressed_chunk: ByteString = self.stream.read(READ_SIZE)
                 if not compressed_chunk:
-                    return
+                    self.stream.seek(0)
+                    # self.zstd._reset_session()
+                    continue
                 chunk = self.zstd.decompress(compressed_chunk)
                 if not chunk:
-                    return
+                    self.stream.seek(0)
+                    # self.zstd._reset_session()
+                    continue
                 yield chunk.decode("utf-8")
 
     def __init__(self, file_opener: FileOpener) -> None:
@@ -67,16 +71,28 @@ class ZstdDecompressor(IterDataPipe):
             yield filename, decompressor
 
 
-def get_datapipeline_fen():
-    file_lister = FileLister(root="data/", masks="*.fen.zst")
-    file_opener = FileOpener(file_lister, mode="b")
-    file_decompressor = ZstdDecompressor(file_opener)
-    multiplexer = MultiplexerLongest(*[x for _, x in file_decompressor])
-    shuffler = Shuffler(multiplexer, buffer_size=SHUFFLER_SIZE)
-    for b in ProgressBar(shuffler, desc="Decompressing FENs", unit="pos"):
-        pass
-    return shuffler
+class FenDataset(IterableDataset):
+    def __init__(self, shuffler: Shuffler[tuple[np.ndarray, int]]):
+        super().__init__()
+        self.shuffler = shuffler
+
+    def __iter__(self):
+        return self.shuffler.__iter__()
+
+
+def get_datapipeline_fen(batch_size=512):
+    file_lister = FileLister(root="data/", masks="*.fen.zst").open_files("b")
+    file_decompressor = ZstdDecompressor(file_lister)  # type: ignore
+    dataloader = (
+        MultiplexerLongest(*[x[1] for x in file_decompressor])
+        .shuffle(buffer_size=batch_size * 10)
+        .batch(batch_size=batch_size)
+    )
+    return dataloader
 
 
 if __name__ == "__main__":
-    get_datapipeline_fen()
+    dataloader = get_datapipeline_fen()
+    bar = ProgressBar(desc="Decompressing FENs", unit="pos")
+    for batch in dataloader:
+        bar.update(len(batch))
