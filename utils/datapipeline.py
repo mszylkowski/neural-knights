@@ -21,7 +21,6 @@ from progressbar import ProgressBar
 WINDOW_SIZE = 100_000
 SHUFFLER_SIZE = 10_000
 NEWLINES_SPLITTER = re.compile("\r\n+")
-DECOMPRESS_PREPROCESS_BATCHES = 10
 MAX_POOLS = None  # Set to None to use all CPU cores, or to a positive integer to limit the number of pools.
 
 
@@ -45,14 +44,9 @@ class ZstdDecompressor(IterDataPipe):
 
         def __iter__(self):
             for chunk in self.__iter_chunk():
-                yield from self.__chunk_to_items(self.last_part + chunk)
-                # for line in lines:
-                #     yield fen_to_bitboards(line)
-
-        def __chunk_to_items(self, lines_str: str):
-            lines: list[str] = NEWLINES_SPLITTER.split(lines_str)
-            self.last_part = lines.pop()
-            yield from self.__pool.map(fen_to_bitboards, lines)
+                lines: list[str] = NEWLINES_SPLITTER.split(self.last_part + chunk)
+                self.last_part = lines.pop()
+                yield from self.__pool.map(fen_to_bitboards, lines)
 
         def __iter_chunk(self):
             while True:
