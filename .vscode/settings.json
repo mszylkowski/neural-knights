@@ -3,5 +3,6 @@
   "editor.tabSize": 4,
   "editor.insertSpaces": true,
   "editor.formatOnSave": true,
-  "explorer.excludeGitIgnore": false
+  "explorer.excludeGitIgnore": false,
+  "editor.rulers": [80, 120]
 }
