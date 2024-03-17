@@ -1,3 +1,8 @@
+import re
+
+NUMBER_RE = re.compile(r"\d")
+
+
 def __flatten(xss):
     return [x for xs in xss for x in xs]
 
@@ -44,9 +49,16 @@ def encode(move: str) -> int:
     return __moves_to_idx[move[:4]]
 
 
-def decode(self, move_idx: int) -> str:
+def decode(move_idx: int) -> str:
     """Converts an index to a UCI move."""
-    return self.moves[move_idx]
+    return __moves[move_idx]
+
+
+def mirror_move(uci_move: str) -> str:
+    """Mirrors a UCI move."""
+    if uci_move.startswith("O"):
+        return uci_move
+    return NUMBER_RE.sub(lambda x: str(9 - int(x.group())), uci_move)
 
 
 if __name__ == "__main__":

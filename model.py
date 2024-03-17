@@ -5,7 +5,7 @@ from utils.moves import get_all_moves
 
 
 class NeuralKnight(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, device: torch.device | None = None) -> None:
         super().__init__()
         self.outputs = len(get_all_moves())
 
@@ -13,6 +13,9 @@ class NeuralKnight(nn.Module):
         self.activation = nn.ELU()
         self.cnn2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
         self.linear = nn.Linear(64 * 8 * 8, self.outputs)
+
+        if device:
+            self.to(device)
 
     def forward(self, x: torch.Tensor):
         x = x.type(torch.float32)

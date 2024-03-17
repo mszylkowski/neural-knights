@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from os import fstat
 from typing import BinaryIO, TextIO
-from chess import Board
+from chess import BLACK, Board
 from multiprocessing import Pool
 import signal
 
@@ -9,6 +9,7 @@ import pyzstd
 import re
 
 from utils.ProgressBar import ProgressBar, format_number
+from utils.moves import mirror_move
 
 LOWEST_ELO = 1400
 HIGHEST_ELO = 1600
@@ -45,11 +46,12 @@ def str_to_game(game: str) -> Game | None:
             if len(moves_str) < 10:
                 return None
             for move in moves_str:
+                rep = (board.mirror() if board.turn == BLACK else board).board_fen()
                 uci = board.push_san(move).uci()
-                rep = board.board_fen()
-                # bitboard = board_to_np(board)
+                if board.turn == BLACK:
+                    uci = mirror_move(uci)
                 moves.append((rep, uci))
-                del board
+            del board
         elif line.startswith("[BlackElo"):
             elo += int(line[11:-2]) // 2
         elif line.startswith("[WhiteElo"):
@@ -127,6 +129,8 @@ def read_pgns_from_zstd(input_stream: BinaryIO, output_stream: TextIO):
         processor,
         callback=cb,
     )
+
+    print("Cleaning")
 
     processor.close()
     bar.close()
