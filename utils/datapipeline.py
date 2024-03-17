@@ -1,5 +1,7 @@
 import signal
+from typing import ByteString
 from chess import BaseBoard
+from multiprocessing import Pool
 import numpy as np
 from torchdata.datapipes.iter import (
     FileLister,
@@ -17,8 +19,10 @@ import moves as MoveEncoder
 from progressbar import ProgressBar
 
 WINDOW_SIZE = 100_000
-SHUFFLER_SIZE = 100_000
+SHUFFLER_SIZE = 10_000
 NEWLINES_SPLITTER = re.compile("\r\n+")
+DECOMPRESS_PREPROCESS_BATCHES = 10
+MAX_POOLS = None  # Set to None to use all CPU cores, or to a positive integer to limit the number of pools.
 
 
 def init_worker():
@@ -32,34 +36,41 @@ def fen_to_bitboards(line: str) -> tuple[np.ndarray, int]:
 
 
 class ZstdDecompressor(IterDataPipe):
+    class Decompressor:
+        def __init__(self, stream: StreamWrapper) -> None:
+            self.zstd = ZstdDec()
+            self.stream = stream
+            self.last_part = ""
+            self.__pool = Pool(MAX_POOLS, initializer=init_worker)
+
+        def __iter__(self):
+            for chunk in self.__iter_chunk():
+                yield from self.__chunk_to_items(self.last_part + chunk)
+                # for line in lines:
+                #     yield fen_to_bitboards(line)
+
+        def __chunk_to_items(self, lines_str: str):
+            lines: list[str] = NEWLINES_SPLITTER.split(lines_str)
+            self.last_part = lines.pop()
+            yield from self.__pool.map(fen_to_bitboards, lines)
+
+        def __iter_chunk(self):
+            while True:
+                compressed_chunk: ByteString = self.stream.read(WINDOW_SIZE)
+                if not compressed_chunk:
+                    return
+                chunk = self.zstd.decompress(compressed_chunk)
+                if not chunk:
+                    return
+                yield chunk.decode("utf-8")
+
     def __init__(self, file_opener: FileOpener) -> None:
         self.file_opener = file_opener
 
     def __iter__(self):
         for filename, file_stream in self.file_opener:
-            decompressor = Decompressor(file_stream)
+            decompressor = ZstdDecompressor.Decompressor(file_stream)
             yield filename, decompressor
-
-
-class Decompressor:
-    def __init__(self, stream: StreamWrapper) -> None:
-        self.zstd = ZstdDec()
-        self.stream = stream
-
-    def __iter__(self):
-        last_part = ""
-        while True:
-            compressed_chunk = self.stream.read(WINDOW_SIZE)
-            if not compressed_chunk:
-                break
-            chunk = self.zstd.decompress(compressed_chunk)
-            if not chunk:
-                break
-            lines_str = last_part + chunk.decode("utf-8")
-            lines: list[str] = NEWLINES_SPLITTER.split(lines_str)
-            last_part = lines.pop()
-            for line in lines:
-                yield fen_to_bitboards(line)
 
 
 def get_datapipeline_fen():
@@ -68,9 +79,7 @@ def get_datapipeline_fen():
     file_decompressor = ZstdDecompressor(file_opener)
     multiplexer = MultiplexerLongest(*[x for _, x in file_decompressor])
     shuffler = Shuffler(multiplexer, buffer_size=SHUFFLER_SIZE)
-    xys = []
     for b in ProgressBar(shuffler, desc="Decompressing FENs", unit="pos"):
-        # xys.append(b)
         pass
     return shuffler
 
