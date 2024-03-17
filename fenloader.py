@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import torch
 
 from utils import moves as MoveEncoder
-from utils.ProgressBar import ProgressBar, format_number
+from utils.progressbar import ProgressBar, format_number
 from utils.board import board_to_np
 
 NEWLINES_SPLITTER = re.compile("\r\n+")
