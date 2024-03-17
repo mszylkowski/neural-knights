@@ -3,7 +3,7 @@ from torchinfo import summary
 
 
 def model_summary(model: torch.nn.Module, batchsize=1000):
-    return repr(summary(model, input_size=(1, 12, 8, 8), verbose=0))
+    return repr(summary(model, input_size=(batchsize, 12, 8, 8), verbose=0))
 
 
 def accuracy(output: torch.Tensor, target: torch.Tensor):

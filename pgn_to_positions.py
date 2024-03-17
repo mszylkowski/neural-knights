@@ -8,7 +8,7 @@ import signal
 import pyzstd
 import re
 
-from utils.ProgressBar import ProgressBar, format_number
+from utils.progressbar import ProgressBar, format_number
 from utils.moves import mirror_move
 
 LOWEST_ELO = 1400
