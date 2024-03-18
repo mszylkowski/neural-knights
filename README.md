@@ -12,9 +12,6 @@ Matias Szylkowski
 Reuven Brener
 </a>
 
-- Matias Szylkowski
-- Reuven Brener
-
 ## Install instructions
 
 Steps:
