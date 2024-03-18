@@ -12,7 +12,8 @@ class NeuralKnight(nn.Module):
         self.cnn1 = nn.Conv2d(12, 64, kernel_size=3, padding=1)
         self.activation = nn.ELU()
         self.cnn2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
-        self.linear = nn.Linear(64 * 8 * 8, self.outputs)
+        self.cnn3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.linear = nn.Linear(128 * 8 * 8, self.outputs)
 
         if device:
             self.to(device)
@@ -23,9 +24,8 @@ class NeuralKnight(nn.Module):
         x = self.activation(x)
         x = self.cnn2(x)
         x = self.activation(x)
+        x = self.cnn3(x)
+        x = self.activation(x)
         x = x.view(x.size(0), -1)
         x = self.linear(x)
         return x
-
-    # def get_parameters_count(self) -> int:
-    #     return sum([param.nelement() for param in self.parameters()])

@@ -1,6 +1,16 @@
-# DL Final Project - Chess
+# DL Final Project - Neural Knights
 
-Authors:
+![Pytorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
+![Python](https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue)
+
+<a style="display:inline-flex;gap:10px;padding:5px 10px 5px 5px;background:#8883;border-radius:40px;line-height:20px" href="https://github.com/mszylkowski">
+<img src="https://avatars.githubusercontent.com/u/22420856" height="20" style="border-radius:50%">
+Matias Szylkowski
+</a>
+<a style="display:inline-flex;gap:10px;padding:5px 10px 5px 5px;background:#8883;border-radius:40px;line-height:20px" href="https://github.com/rabrener">
+<img src="https://avatars.githubusercontent.com/u/16889614" height="20" style="border-radius:50%">
+Reuven Brener
+</a>
 
 - Matias Szylkowski
 - Reuven Brener
@@ -12,11 +22,19 @@ Steps:
 - Optionally, create a new [Conda](https://www.anaconda.com) environment (eg:`dl_final`).
 - Run `pip install -r requirements.txt`.
 - Install [Pytorch](https://pytorch.org/get-started/locally) with Cuda (if the device has GPU, otherwise install regular Pytorch).
-- Download training datasets from the [Lichess Database](https://database.lichess.org/#standard_games) ([read more](./README.md)).
-- Convert the dataset to a `data/*.fen.txt` using `python -m pgn_to_positions`, which can take 15 minutes or so. Make sure the input files in the source match the files you downloaded. This needs to be done for each dataset downloaded as a `data/*.pgn.zst`.
-- Encode the resulting `data/*.fen.txt` into a `data/*.fen.zst` using `python -m utils.zstd -i data/fen_1500_<date>.fen.txt -o data/fen_1500_<date>.fen.zst -m compress`. Optionally, you can delete the `data/*.fen.txt` since we'll only use the `data/*.fen.zst` from now on.
+
+## Training instructions
+
+Steps:
+
+- Download training datasets from the [Lichess Database](https://database.lichess.org/#standard_games) ([read more](./data/README.md)).
 - Run `python -m train --test` (or remove the flag `--test` to store the results in `runs/`).
-- Play against the bot using `python -m play -m <model>`
+
+## Playing
+
+Play against the bot using `python -m play_online -m <model>`, and go to `http://localhost:8080`.
+
+Or, use `python -m play -m <model>` to play in the CLI.
 
 ## Additional Resources
 

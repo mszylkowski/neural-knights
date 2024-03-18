@@ -56,13 +56,14 @@ def get_model_move(board: Board, model_color: bool, model: NeuralKnight) -> Move
         board_to_np(board_correct_view).reshape(1, 12, 8, 8), device=DEVICE
     )
     model_move = model.forward(model_input)
-    for move_idx in model_move.argsort().cpu().numpy()[0]:
+    for move_idx in model_move.argsort(descending=True).cpu().numpy()[0]:
         corrected_move = MoveEncoder.decode(int(move_idx.item()))
         move = (
             MoveEncoder.mirror_move(corrected_move)
             if model_color == BLACK
             else corrected_move
         )
+        corrected_move = Move.from_uci(corrected_move)
         if move.startswith("O"):
             try:
                 return board.push_san(move)
@@ -70,9 +71,16 @@ def get_model_move(board: Board, model_color: bool, model: NeuralKnight) -> Move
                 continue
         else:
             move = Move.from_uci(move)
-            if not board.is_legal(move):
+            # Try both normal move and mirrored move, in case the model was not trained properly.
+            if board.is_legal(move):
+                print("Used model move:", move.uci())
+                board.push(move)
+            elif board.is_legal(corrected_move):
+                print("Used mirrored model move:", move.uci())
+                board.push(corrected_move)
+            else:
+                print("Move was illegal", move.uci(), corrected_move.uci())
                 continue
-            board.push(move)
         return move
     raise Exception("No move found")
 

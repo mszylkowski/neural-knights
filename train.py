@@ -7,7 +7,7 @@ from torch import nn
 import torch.optim as optim
 import argparse
 from model import NeuralKnight
-from utils.datapipeline import get_datapipeline_fen
+from utils.pgnpipeline import get_datapipeline_pgn
 from utils.meters import AverageMeter
 from utils.model import model_summary, accuracy
 
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
     # Load data
-    dataloader = get_datapipeline_fen(batch_size=args.batchsize)
+    dataloader = get_datapipeline_pgn(batch_size=args.batchsize)
     summary_str = model_summary(model, batchsize=args.batchsize)
     args.criterion = criterion
     args.optimizer = optimizer

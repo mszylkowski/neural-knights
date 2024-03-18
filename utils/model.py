@@ -11,3 +11,7 @@ def accuracy(output: torch.Tensor, target: torch.Tensor):
     correct = torch.argmax(output, dim=-1).eq(target).sum() * 1.0
     acc = correct / target.shape[0]
     return acc
+
+
+def get_parameters_count(self) -> int:
+    return sum([param.nelement() for param in self.parameters()])

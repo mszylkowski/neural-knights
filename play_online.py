@@ -1,7 +1,7 @@
 import argparse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs
-from chess import BLACK, STARTING_FEN, Board
+from chess import BLACK, STARTING_FEN, Board, Move
 import torch
 
 from model import NeuralKnight
@@ -64,6 +64,9 @@ class MyServer(BaseHTTPRequestHandler):
         else:
             notes.append("No move provided")
         print(notes)
+        datalist = "".join(
+            [f"<option>{board.san(m)}</option>" for m in board.generate_legal_moves()]
+        )
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
@@ -87,7 +90,7 @@ class MyServer(BaseHTTPRequestHandler):
                     "<p>Game over! "
                     + RESET_ANCHOR
                     + board.result()
-                    + "</p><form><input type='submit' value='Reset game'></form>",
+                    + "</p><form><input type='submit' value='Reset game' list='moves'></form>",
                     "utf-8",
                 )
             )
@@ -95,17 +98,18 @@ class MyServer(BaseHTTPRequestHandler):
             self.wfile.write(
                 bytes(
                     "<form><fieldset>"
-                    f"<label for='move'>Move</label>"
-                    f"<input type='text' name='move' id='move' autofocus autocomplete>"
+                    "<label for='move'>Move</label>"
+                    "<input type='text' name='move' id='move' autofocus list='moves' autocomplete='off'>"
+                    f"<datalist id='moves'>{datalist}</datalist>"
                     "<small>Use SAN notation. Eg: <code>d4</code>, <code>Nf3</code>, <code>O-O-O</code></small>"
-                    f"<input type='hidden' name='fen' value='{board.board_fen()}'>"
+                    f"<input type='hidden' name='fen' value='{board.fen()}'>"
                     "</fieldset></form>",
                     "utf-8",
                 )
             )
         self.wfile.write(
             bytes(
-                f"<p>Notes: </p><ul>{"".join(map(lambda x: f"<li>{x}</li>", notes))}</ul>",
+                f"<p>Notes: </p><ul>{''.join(map(lambda x: f'<li>{x}</li>', notes))}</ul>",
                 "utf-8",
             )
         )
