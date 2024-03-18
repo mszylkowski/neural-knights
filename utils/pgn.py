@@ -37,9 +37,10 @@ def str_to_game(game: str, elo=1500, elo_range=100) -> Game | None:
             if len(moves_str) < 10:
                 return None
             for move in moves_str:
-                rep = (board.mirror() if board.turn == BLACK else board).board_fen()
+                turn = board.turn
+                rep = (board.mirror() if turn == BLACK else board).board_fen()
                 uci = board.push_san(move).uci()
-                if board.turn == BLACK:
+                if turn == BLACK:
                     uci = mirror_move(uci)
                 moves.append((rep, uci))
             del board
@@ -74,9 +75,10 @@ def str_to_bitboards(
             if len(moves_str) < 10:
                 return None
             for move in moves_str:
-                rep = board_to_np((board.mirror() if board.turn == BLACK else board))
+                turn = board.turn
+                rep = board_to_np((board.mirror() if turn == BLACK else board))
                 uci = board.push_san(move).uci()
-                if board.turn == BLACK:
+                if turn == BLACK:
                     uci = mirror_move(uci)
                 moves.append((rep, encode(uci)))
             del board
