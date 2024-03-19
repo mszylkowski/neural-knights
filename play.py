@@ -1,4 +1,5 @@
 import argparse
+from termcolor import colored
 from chess import BLACK, WHITE, Board, Move
 import torch
 
@@ -32,8 +33,27 @@ def get_args():
     return parser.parse_args()
 
 
+def pprint_board(board: Board):
+    unicode = board.unicode(empty_square=" ")
+    for i, line in enumerate(unicode.split("\n")):
+        for j, char in enumerate(line.split(" ")):
+            print(
+                colored(
+                    char + " ",
+                    "black",
+                    (
+                        "on_white"
+                        if (i + (j if len(char) else j // 2)) % 2
+                        else "on_light_grey"
+                    ),
+                ),
+                end="",
+            )
+        print()
+
+
 def get_player_move(board: Board, player_color: bool):
-    print(board.unicode(empty_square=" "))
+    pprint_board(board)
     while board.turn == WHITE:
         player_move = input("Enter your move: ")
         if len(player_move) > 2:
