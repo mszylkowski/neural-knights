@@ -9,7 +9,7 @@ from torchdata.datapipes.iter import (
 )
 from torch.utils.data.datapipes.datapipe import IterDataPipe
 from torchdata.datapipes.utils import StreamWrapper
-from pyzstd import EndlessZstdDecompressor as ZstdDec
+from pyzstd import ZstdDecompressor as ZstdDec
 import re
 
 from utils.pgn import str_to_bitboards
@@ -46,10 +46,12 @@ class ZstdDecompressor(IterDataPipe):
                 compressed_chunk: ByteString = self.stream.read(READ_SIZE)
                 if not compressed_chunk:
                     self.stream.seek(0)
+                    self.zstd._reset_session()
                     continue
                 chunk = self.zstd.decompress(compressed_chunk)
                 if not chunk:
                     self.stream.seek(0)
+                    self.zstd._reset_session()
                     continue
                 yield chunk.decode("utf-8")
 

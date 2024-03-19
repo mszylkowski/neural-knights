@@ -44,10 +44,11 @@ def str_to_game(game: str, elo=1500, elo_range=100) -> Game | None:
                     uci = mirror_move(uci)
                 moves.append((rep, uci))
             del board
-        elif line.startswith("[BlackElo"):
-            current_elo += int(line[11:-2]) // 2
-        elif line.startswith("[WhiteElo"):
-            current_elo += int(line[11:-2]) // 2
+        elif line.startswith("[BlackElo") or line.startswith("[WhiteElo"):
+            elo_str = line[11:-2]
+            if elo_str == "?":
+                return None
+            current_elo += int(elo_str) // 2
         elif line.startswith("[TimeControl"):
             control = line[14:-2]
             base = control.split("+")[0]
@@ -82,10 +83,11 @@ def str_to_bitboards(
                     uci = mirror_move(uci)
                 moves.append((rep, encode(uci)))
             del board
-        elif line.startswith("[BlackElo"):
-            current_elo += int(line[11:-2]) // 2
-        elif line.startswith("[WhiteElo"):
-            current_elo += int(line[11:-2]) // 2
+        elif line.startswith("[BlackElo") or line.startswith("[WhiteElo"):
+            elo_str = line[11:-2]
+            if elo_str == "?":
+                return None
+            current_elo += int(elo_str) // 2
         elif line.startswith("[TimeControl"):
             control = line[14:-2]
             base = control.split("+")[0]
@@ -120,8 +122,11 @@ def str_to_simple_pgn(game: str, elo=1500, elo_range=100) -> str | None:
             content.append(line)
         elif line.startswith("[Result"):
             result = line[9:-2]
-        elif line.startswith("[WhiteElo"):
-            current_elo += int(line[11:-2]) // 2
+        elif line.startswith("[BlackElo") or line.startswith("[WhiteElo"):
+            elo_str = line[11:-2]
+            if elo_str == "?":
+                return None
+            current_elo += int(elo_str) // 2
             content.append(line)
         elif line.startswith("[TimeControl"):
             control = line[14:-2]
@@ -134,4 +139,4 @@ def str_to_simple_pgn(game: str, elo=1500, elo_range=100) -> str | None:
 if __name__ == "__main__":
     input_stream = open("data/sample-pgn.txt", "r").read()
     print(input_stream)
-    print(str_to_game(input_stream))
+    print(str_to_bitboards(input_stream))
