@@ -3,6 +3,8 @@
 ![Pytorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue)
 
+![LOGO](./assets/logo.png)
+
 <a style="display:inline-flex;gap:10px;padding:5px 10px 5px 5px;background:#8883;border-radius:40px;line-height:20px" href="https://github.com/mszylkowski">
 <img src="https://avatars.githubusercontent.com/u/22420856" height="20" style="border-radius:50%">
 Matias Szylkowski
