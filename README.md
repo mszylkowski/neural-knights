@@ -14,7 +14,7 @@ Matias Szylkowski
 Reuven Brener
 </a>
 
-## Install instructions
+## Install instructions:
 
 Steps:
 
@@ -22,20 +22,20 @@ Steps:
 - Run `pip install -r requirements.txt`.
 - Install [Pytorch](https://pytorch.org/get-started/locally) with Cuda (if the device has GPU, otherwise install regular Pytorch).
 
-## Training instructions
+## Training instructions:
 
 Steps:
 
 - Download training datasets from the [Lichess Database](https://database.lichess.org/#standard_games) ([read more](./data/README.md)).
 - Run `python -m train --test` (or remove the flag `--test` to store the results in `runs/`).
 
-## Playing
+## Playing:
 
 Play against the bot using `python -m play_online -m <model>`, and go to `http://localhost:8080`.
 
 Or, use `python -m play -m <model>` to play in the CLI.
 
-## Additional Resources
+## Additional Resources:
 
 Maia Chess (Human Engine):
 
