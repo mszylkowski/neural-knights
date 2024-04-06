@@ -5,3 +5,4 @@ tqdm==4.66.2
 torchinfo==1.8.0
 torchdata==0.7.1
 termcolor==2.4.0
+tensorboard==2.16.2

@@ -1,5 +1,5 @@
-from chess import BaseBoard
 import numpy as np
+from chess import BaseBoard
 
 
 def board_to_np(board: BaseBoard) -> np.ndarray:
