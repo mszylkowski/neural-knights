@@ -3,6 +3,7 @@ import signal
 from typing import ByteString
 from multiprocessing import Pool
 from torchdata.datapipes.iter import (
+    IterableWrapper,
     FileLister,
     FileOpener,
     MultiplexerLongest,
@@ -79,6 +80,19 @@ def get_datapipeline_pgn(batch_size=512):
         .batch(batch_size=batch_size)
     )
     return dataloader
+
+def get_validation_pgns(batch_size=512, max_num_batches=1_000):
+    # Gets only one file for now.
+    file_lister = FileLister(
+        root="data/", masks="validation_lichess_db_standard_rated.pgn.zst"
+    ).open_files("b")
+    _, stream = next(iter(file_lister))
+    validation_pool = Pool(MAX_POOLS, initializer=init_worker)
+    decompressor = ZstdDecompressor.Decompressor(
+            stream, validation_pool)  # type: ignore
+    dp = IterableWrapper(decompressor).batch(
+            batch_size=batch_size, drop_last=True).header(max_num_batches)
+    return dp
 
 
 if __name__ == "__main__":

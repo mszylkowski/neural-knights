@@ -7,7 +7,7 @@ from torch import nn
 import torch.optim as optim
 import argparse
 from model import NeuralKnight
-from utils.pgnpipeline import get_datapipeline_pgn
+from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
 from utils.meters import AverageMeter
 from utils.model import model_summary, accuracy
 
@@ -41,6 +41,22 @@ def get_args():
         action=argparse.BooleanOptionalAction,
     )
     return parser.parse_args()
+
+def update_validation_meters(model, val_losses, val_acc):
+    dataloader = get_validation_pgns()
+    for batch_number, batch in enumerate(dataloader, 1):
+        batch_x, batch_y = zip(*batch)
+        batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
+        batch_y = torch.tensor(batch_y, device=DEVICE)
+
+    with torch.no_grad():
+        outputs = model.forward(batch_x)
+        loss = criterion(outputs, batch_y)
+
+        # Update training loss and accuracy
+        val_losses.update(loss.item(), outputs.shape[0])
+        batch_acc = accuracy(outputs, batch_y)
+        val_acc.update(batch_acc, outputs.shape[0])
 
 
 if __name__ == "__main__":
@@ -77,6 +93,8 @@ if __name__ == "__main__":
     # Set up trackers
     losses = AverageMeter()
     acc = AverageMeter()
+    val_losses = AverageMeter()
+    val_acc = AverageMeter()
     start = time()
 
     # Training loop
@@ -96,8 +114,12 @@ if __name__ == "__main__":
         batch_acc = accuracy(outputs, batch_y)
         acc.update(batch_acc, outputs.shape[0])
 
+        # Run validate scores
+        update_validation_meters(model, val_losses, val_acc)
+
         curr_time = time() - start
         if batch_number % 100 == 0:
+                                     
             print(
                 f"[Epoch {batch_number // 100:05d}] "
                 f"loss: {loss.item():.3f}, acc: {batch_acc:.3f}, time: {curr_time:.1f}"
