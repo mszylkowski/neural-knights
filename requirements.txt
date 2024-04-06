@@ -1,5 +1,5 @@
 chess==1.10.0
-pyzstd==0.15.9
+zstandard==0.22.0
 tqdm==4.66.2
 torchinfo==1.8.0
 torchdata==0.7.1
