@@ -4,6 +4,7 @@ from time import time
 import numpy as np
 import torch
 from torch import nn
+from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
 import argparse
 from model import NeuralKnight
@@ -40,7 +41,22 @@ def get_args():
         help="Do a test run (don't store anything).",
         action=argparse.BooleanOptionalAction,
     )
+    parser.add_argument(
+        "--lr",
+        "-l",
+        type=float,
+        default=0.001,
+        help="Learning rate of stochastic gradient descent.",
+    )
+    parser.add_argument(
+        "--momentum",
+        "-m",
+        type=float,
+        default=0.9,
+        help="Momentum of stochastic gradient descent.",
+    )
     return parser.parse_args()
+
 
 def update_validation_meters(model, val_losses, val_acc):
     dataloader = get_validation_pgns()
@@ -57,6 +73,7 @@ def update_validation_meters(model, val_losses, val_acc):
         val_losses.update(loss.item(), outputs.shape[0])
         batch_acc = accuracy(outputs, batch_y)
         val_acc.update(batch_acc, outputs.shape[0])
+    return loss.item(), batch_acc
 
 
 if __name__ == "__main__":
@@ -66,11 +83,12 @@ if __name__ == "__main__":
     # Create model and helpers
     model = NeuralKnight(device=DEVICE)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
     # Load data
     dataloader = get_datapipeline_pgn(batch_size=args.batchsize)
     summary_str = model_summary(model, batchsize=args.batchsize)
+    run_args = dict(vars(args))
     args.criterion = criterion
     args.optimizer = optimizer
 
@@ -95,6 +113,7 @@ if __name__ == "__main__":
     acc = AverageMeter()
     val_losses = AverageMeter()
     val_acc = AverageMeter()
+    writer = SummaryWriter(f"runs/{name}")
     start = time()
 
     # Training loop
@@ -118,18 +137,33 @@ if __name__ == "__main__":
         update_validation_meters(model, val_losses, val_acc)
 
         curr_time = time() - start
+        epoch = round(batch_number // 100)
         if batch_number % 100 == 0:
-                                     
             print(
-                f"[Epoch {batch_number // 100:05d}] "
+                f"[Epoch {epoch:05d}] "
                 f"loss: {loss.item():.3f}, acc: {batch_acc:.3f}, time: {curr_time:.1f}"
             )
+
+            # Update writer
+
+            writer.add_scalar("Loss/train", loss.item(), epoch)
+            writer.add_scalar("Loss/test", loss.item(), epoch)
+            writer.add_scalar("Accuracy/train", batch_acc, epoch)
+            writer.add_scalar("Accuracy/test", batch_acc, epoch)
+        if batch_number == 1:
+            writer.add_graph(model, batch_x)
+
         if batch_number % 10000 == 0 or batch_number == 1:
+            writer.add_hparams(
+                run_args, {"hparam/acc": val_acc.avg, "hparam/loss": val_losses.avg}
+            )
             output.write(
-                f"| {batch_number // 100:05d} | {losses.avg:.3f} | {acc.avg:.3f} | {int(curr_time)} |\n"
+                f"| {epoch:05d} | {losses.avg:.3f} | {acc.avg:.3f} | {int(curr_time)} |\n"
             )
             output.flush()
             if not args.test:
                 torch.save(model.state_dict(), model_path)
             losses.reset()
             acc.reset()
+            val_losses.reset()
+            val_acc.reset()

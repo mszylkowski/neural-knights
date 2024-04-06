@@ -1,12 +1,13 @@
 import argparse
-from termcolor import colored
-from chess import BLACK, WHITE, Board, Move
-import torch
 
+import torch
+from chess import BLACK, WHITE, Board, Move
+from termcolor import colored
+
+import utils.moves as MoveEncoder
 from model import NeuralKnight
 from utils.board import board_to_np
 from utils.model import model_summary
-import utils.moves as MoveEncoder
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
