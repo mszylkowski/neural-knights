@@ -93,7 +93,8 @@ if __name__ == "__main__":
 
         # Update training loss and accuracy
         losses.update(loss.item(), outputs.shape[0])
-        acc.update(accuracy(outputs, batch_y), outputs.shape[0])
+        batch_acc = accuracy(outputs, batch_y)
+        acc.update(batch_acc, outputs.shape[0])
 
         curr_time = time() - start
         if batch_number % 100 == 0:

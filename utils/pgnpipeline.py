@@ -9,7 +9,7 @@ from torchdata.datapipes.iter import (
 )
 from torch.utils.data.datapipes.datapipe import IterDataPipe
 from torchdata.datapipes.utils import StreamWrapper
-from pyzstd import ZstdDecompressor as ZstdDec
+from pyzstd import EndlessZstdDecompressor
 import re
 
 from utils.pgn import str_to_bitboards
@@ -27,7 +27,7 @@ def init_worker():
 class ZstdDecompressor(IterDataPipe):
     class Decompressor:
         def __init__(self, stream: StreamWrapper, pool: PoolType) -> None:
-            self.zstd = ZstdDec()
+            self.zstd = EndlessZstdDecompressor()
             self.stream = stream
             self.last_part = ""
             self.__pool = pool
