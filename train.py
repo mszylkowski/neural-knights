@@ -88,7 +88,6 @@ if __name__ == "__main__":
     # Load data
     dataloader = get_datapipeline_pgn(batch_size=args.batchsize)
     summary_str = model_summary(model, batchsize=args.batchsize)
-    run_args = dict(vars(args))
     args.criterion = criterion
     args.optimizer = optimizer
 
@@ -145,7 +144,6 @@ if __name__ == "__main__":
             )
 
             # Update writer
-
             writer.add_scalar("Loss/train", loss.item(), epoch)
             writer.add_scalar("Loss/test", loss.item(), epoch)
             writer.add_scalar("Accuracy/train", batch_acc, epoch)
@@ -154,9 +152,6 @@ if __name__ == "__main__":
             writer.add_graph(model, batch_x)
 
         if batch_number % 10000 == 0 or batch_number == 1:
-            writer.add_hparams(
-                run_args, {"hparam/acc": val_acc.avg, "hparam/loss": val_losses.avg}
-            )
             output.write(
                 f"| {epoch:05d} | {losses.avg:.3f} | {acc.avg:.3f} | {int(curr_time)} |\n"
             )
