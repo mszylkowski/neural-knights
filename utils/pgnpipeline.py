@@ -88,11 +88,13 @@ def get_validation_pgns(batch_size=512):
         root="data/", masks="validation_lichess_db_standard_rated_*.pgn.zst"
     ).open_files("b")
     assert len(list(file_lister)) > 0, "No validation files found"
-    _, stream = next(iter(file_lister))
-    validation_pool = Pool(MAX_POOLS, initializer=init_worker)
-    decompressor = ZstdDecompressor.Decompressor(stream, validation_pool)  # type: ignore
-    dp = IterableWrapper(decompressor).batch(batch_size=batch_size, drop_last=True)
-    return dp
+
+    file_decompressor = ZstdDecompressor(file_lister)
+    dataloader = (
+        MultiplexerLongest(*file_decompressor)
+        .batch(batch_size=batch_size)
+    )
+    return dataloader
 
 
 if __name__ == "__main__":

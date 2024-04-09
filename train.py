@@ -58,8 +58,7 @@ def get_args():
     return parser.parse_args()
 
 
-def update_validation_meters(model, val_losses, val_acc, max_num_batches=1000):
-    dataloader = get_validation_pgns()
+def update_validation_meters(model, dataloader, val_losses, val_acc, max_num_batches=1000):
     for batch_number, batch in enumerate(dataloader, 1):
         if batch_number > max_num_batches:
             break
@@ -89,6 +88,7 @@ if __name__ == "__main__":
 
     # Load data
     dataloader = get_datapipeline_pgn(batch_size=args.batchsize)
+    val_dataloader = get_validation_pgns()
     summary_str = model_summary(model, batchsize=args.batchsize)
     args.criterion = criterion
     args.optimizer = optimizer
@@ -135,7 +135,7 @@ if __name__ == "__main__":
         acc.update(batch_acc, outputs.shape[0])
 
         # Run validate scores
-        update_validation_meters(model, val_losses, val_acc)
+        update_validation_meters(model, val_dataloader, val_losses, val_acc)
 
         curr_time = time() - start
         epoch = round(batch_number // 100)
