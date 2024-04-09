@@ -82,19 +82,16 @@ def get_datapipeline_pgn(batch_size=512):
     return dataloader
 
 
-def get_validation_pgns(batch_size=512, max_num_batches=1_000):
+def get_validation_pgns(batch_size=512):
     # Gets only one file for now.
     file_lister = FileLister(
         root="data/", masks="validation_lichess_db_standard_rated_*.pgn.zst"
     ).open_files("b")
+    assert len(list(file_lister)) > 0, "No validation files found"
     _, stream = next(iter(file_lister))
     validation_pool = Pool(MAX_POOLS, initializer=init_worker)
     decompressor = ZstdDecompressor.Decompressor(stream, validation_pool)  # type: ignore
-    dp = (
-        IterableWrapper(decompressor)
-        .batch(batch_size=batch_size, drop_last=True)
-        .header(max_num_batches)
-    )
+    dp = IterableWrapper(decompressor).batch(batch_size=batch_size, drop_last=True)
     return dp
 
 
