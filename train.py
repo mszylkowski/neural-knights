@@ -142,7 +142,7 @@ if __name__ == "__main__":
         if batch_number % 100 == 0:
             print(
                 f"[Epoch {epoch:05d}] "
-                f"loss: {loss.item():.3f}, acc: {batch_acc:.3f}, time: {curr_time:.1f}"
+                f"train loss: {loss.item():.3f}, acc: {batch_acc:.3f}, time: {curr_time:.1f}"
             )
 
             # Update writer
@@ -155,7 +155,10 @@ if __name__ == "__main__":
 
         if batch_number % 10000 == 0 or batch_number == 1:
             output.write(
-                f"| {epoch:05d} | {losses.avg:.3f} | {acc.avg:.3f} | {int(curr_time)} |\n"
+                f"| {epoch:05d} | training    | {losses.avg:.3f} | {acc.avg:.3f} | ---------------- |\n"
+            )
+            output.write(
+                f"| ----------- | validation  | {val_losses.avg:.3f} | {val_acc.avg:.3f} | {int(curr_time)} |\n"
             )
             output.flush()
             if not args.test:
