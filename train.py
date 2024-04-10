@@ -111,8 +111,6 @@ if __name__ == "__main__":
     # Set up trackers
     losses = AverageMeter()
     acc = AverageMeter()
-    val_losses = AverageMeter()
-    val_accs = AverageMeter()
     writer = SummaryWriter(f"runs/{name}")
     start = time()
 
@@ -140,34 +138,28 @@ if __name__ == "__main__":
                 f"[Epoch {epoch:05d}] "
                 f"train loss: {loss.item():.3f}, acc: {batch_acc:.3f}, time: {curr_time:.1f}"
             )
-
-            # Update writer
-            writer.add_scalar("Loss/train", loss.item(), epoch)
-            writer.add_scalar("Loss/test", loss.item(), epoch)
-            writer.add_scalar("Accuracy/train", batch_acc, epoch)
-            writer.add_scalar("Accuracy/test", batch_acc, epoch)
         if batch_number == 1:
             writer.add_graph(model, batch_x)
 
-        if batch_number % 10000 == 0 or batch_number == 1:
+        # Every 10 epochs
+        if batch_number % 1000 == 0 or batch_number == 1:
             # Run validate scores
             val_loss, val_acc = get_validation_scores(model, criterion, val_dataloader)
-            # Note since we always the same number of validation batches, it
-            # doesn't matter that we don't pass the batch num to
-            # AverageMeter.update.
-            val_losses.update(val_loss)
-            val_accs.update(val_acc)
+
+            # Update Tensorboard writer
+            writer.add_scalar("Loss/train", loss.item(), epoch)
+            writer.add_scalar("Loss/test", val_loss, epoch)
+            writer.add_scalar("Accuracy/train", batch_acc, epoch)
+            writer.add_scalar("Accuracy/test", val_acc, epoch)
 
             output.write(
                 f"| {epoch:05d} | training    | {losses.avg:.3f} | {acc.avg:.3f} | ---------------- |\n"
             )
             output.write(
-                f"| ----------- | validation  | {val_losses.avg:.3f} | {val_accs.avg:.3f} | {int(curr_time)} |\n"
+                f"| ----------- | validation  | {val_loss:.3f} | {val_acc:.3f} | {int(curr_time)} |\n"
             )
             output.flush()
             if not args.test:
                 torch.save(model.state_dict(), model_path)
             losses.reset()
             acc.reset()
-            val_losses.reset()
-            val_accs.reset()
