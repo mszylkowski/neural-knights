@@ -62,7 +62,7 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=100):
     all_losses = np.zeros(max_num_batches, dtype=np.float32)
     all_accs = np.zeros(max_num_batches, dtype=np.float32)
     for batch_number in range(max_num_batches):
-        batch = next(dataloader)
+        batch = next(iter(dataloader))
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
         batch_y = torch.tensor(batch_y, device=DEVICE)
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     losses = AverageMeter()
     acc = AverageMeter()
     val_losses = AverageMeter()
-    val_acc = AverageMeter()
+    val_accs = AverageMeter()
     writer = SummaryWriter(f"runs/{name}")
     start = time()
 
@@ -152,18 +152,17 @@ if __name__ == "__main__":
         if batch_number % 10000 == 0 or batch_number == 1:
             # Run validate scores
             val_loss, val_acc = get_validation_scores(model, criterion, val_dataloader)
-
             # Note since we always the same number of validation batches, it
             # doesn't matter that we don't pass the batch num to
             # AverageMeter.update.
-            val_losses.update(loss.item())
-            val_acc.update(batch_acc)
+            val_losses.update(val_loss)
+            val_accs.update(val_acc)
 
             output.write(
                 f"| {epoch:05d} | training    | {losses.avg:.3f} | {acc.avg:.3f} | ---------------- |\n"
             )
             output.write(
-                f"| ----------- | validation  | {val_losses.avg:.3f} | {val_acc.avg:.3f} | {int(curr_time)} |\n"
+                f"| ----------- | validation  | {val_losses.avg:.3f} | {val_accs.avg:.3f} | {int(curr_time)} |\n"
             )
             output.flush()
             if not args.test:
@@ -171,4 +170,4 @@ if __name__ == "__main__":
             losses.reset()
             acc.reset()
             val_losses.reset()
-            val_acc.reset()
+            val_accs.reset()
