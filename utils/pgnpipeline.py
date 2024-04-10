@@ -83,7 +83,6 @@ def get_datapipeline_pgn(batch_size=512):
 
 
 def get_validation_pgns(batch_size=512):
-    # Gets only one file for now.
     file_lister = FileLister(
         root="data/", masks="validation_lichess_db_standard_rated_*.pgn.zst"
     ).open_files("b")

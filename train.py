@@ -58,22 +58,22 @@ def get_args():
     return parser.parse_args()
 
 
-def update_validation_meters(model, dataloader, val_losses, val_acc, max_num_batches=1000):
+def get_validation_scores(model, criterion, dataloader, max_num_batches=100):
+    all_losses = np.zeros(max_num_batches, dtype=np.float32)
+    all_accs = np.zeros(max_num_batches, dtype=np.float32)
     for batch_number in range(max_num_batches):
-      batch = next(dataloader)
+        batch = next(dataloader)
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
         batch_y = torch.tensor(batch_y, device=DEVICE)
 
-    with torch.no_grad():
-        outputs = model.forward(batch_x)
-        loss = criterion(outputs, batch_y)
-
-        # Update training loss and accuracy
-        val_losses.update(loss.item(), outputs.shape[0])
-        batch_acc = accuracy(outputs, batch_y)
-        val_acc.update(batch_acc, outputs.shape[0])
-    return loss.item(), batch_acc
+        with torch.no_grad():
+            outputs = model.forward(batch_x)
+            loss = criterion(outputs, batch_y)
+            batch_acc = accuracy(outputs, batch_y)
+        all_losses[batch_number] = loss.item()
+        all_accs[batch_number] = batch_acc
+    return np.mean(all_losses), np.mean(all_accs)
 
 
 if __name__ == "__main__":
@@ -133,9 +133,6 @@ if __name__ == "__main__":
         batch_acc = accuracy(outputs, batch_y)
         acc.update(batch_acc, outputs.shape[0])
 
-        # Run validate scores
-        update_validation_meters(model, val_dataloader, val_losses, val_acc)
-
         curr_time = time() - start
         epoch = round(batch_number // 100)
         if batch_number % 100 == 0:
@@ -153,6 +150,15 @@ if __name__ == "__main__":
             writer.add_graph(model, batch_x)
 
         if batch_number % 10000 == 0 or batch_number == 1:
+            # Run validate scores
+            val_loss, val_acc = get_validation_scores(model, criterion, val_dataloader)
+
+            # Note since we always the same number of validation batches, it
+            # doesn't matter that we don't pass the batch num to
+            # AverageMeter.update.
+            val_losses.update(loss.item())
+            val_acc.update(batch_acc)
+
             output.write(
                 f"| {epoch:05d} | training    | {losses.avg:.3f} | {acc.avg:.3f} | ---------------- |\n"
             )
