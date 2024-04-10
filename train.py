@@ -59,9 +59,8 @@ def get_args():
 
 
 def update_validation_meters(model, dataloader, val_losses, val_acc, max_num_batches=1000):
-    for batch_number, batch in enumerate(dataloader, 1):
-        if batch_number > max_num_batches:
-            break
+    for batch_number in range(max_num_batches):
+      batch = next(dataloader)
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
         batch_y = torch.tensor(batch_y, device=DEVICE)
