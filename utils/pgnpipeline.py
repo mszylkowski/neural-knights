@@ -92,6 +92,7 @@ def get_validation_pgns(batch_size=512):
     file_decompressor = ZstdDecompressor(file_lister)
     dataloader = (
         MultiplexerLongest(*file_decompressor)
+        .shuffle(buffer_size=batch_size * 10)
         .batch(batch_size=batch_size)
     )
     return dataloader
