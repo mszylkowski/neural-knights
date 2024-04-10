@@ -58,22 +58,22 @@ def get_args():
     return parser.parse_args()
 
 
-def update_validation_meters(model, val_losses, val_acc):
-    dataloader = get_validation_pgns()
-    for batch_number, batch in enumerate(dataloader, 1):
+def get_validation_scores(model, criterion, dataloader, max_num_batches=100):
+    all_losses = np.zeros(max_num_batches, dtype=np.float32)
+    all_accs = np.zeros(max_num_batches, dtype=np.float32)
+    for batch_number in range(max_num_batches):
+        batch = next(iter(dataloader))
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
         batch_y = torch.tensor(batch_y, device=DEVICE)
 
-    with torch.no_grad():
-        outputs = model.forward(batch_x)
-        loss = criterion(outputs, batch_y)
-
-        # Update training loss and accuracy
-        val_losses.update(loss.item(), outputs.shape[0])
-        batch_acc = accuracy(outputs, batch_y)
-        val_acc.update(batch_acc, outputs.shape[0])
-    return loss.item(), batch_acc
+        with torch.no_grad():
+            outputs = model.forward(batch_x)
+            loss = criterion(outputs, batch_y)
+            batch_acc = accuracy(outputs, batch_y)
+        all_losses[batch_number] = loss.item()
+        all_accs[batch_number] = batch_acc
+    return np.mean(all_losses), np.mean(all_accs)
 
 
 if __name__ == "__main__":
@@ -87,6 +87,7 @@ if __name__ == "__main__":
 
     # Load data
     dataloader = get_datapipeline_pgn(batch_size=args.batchsize)
+    val_dataloader = get_validation_pgns()
     summary_str = model_summary(model, batchsize=args.batchsize)
     args.criterion = criterion
     args.optimizer = optimizer
@@ -110,8 +111,6 @@ if __name__ == "__main__":
     # Set up trackers
     losses = AverageMeter()
     acc = AverageMeter()
-    val_losses = AverageMeter()
-    val_acc = AverageMeter()
     writer = SummaryWriter(f"runs/{name}")
     start = time()
 
@@ -132,33 +131,35 @@ if __name__ == "__main__":
         batch_acc = accuracy(outputs, batch_y)
         acc.update(batch_acc, outputs.shape[0])
 
-        # Run validate scores
-        update_validation_meters(model, val_losses, val_acc)
-
         curr_time = time() - start
         epoch = round(batch_number // 100)
         if batch_number % 100 == 0:
             print(
                 f"[Epoch {epoch:05d}] "
-                f"loss: {loss.item():.3f}, acc: {batch_acc:.3f}, time: {curr_time:.1f}"
+                f"train loss: {loss.item():.3f}, acc: {batch_acc:.3f}, time: {curr_time:.1f}"
             )
-
-            # Update writer
-            writer.add_scalar("Loss/train", loss.item(), epoch)
-            writer.add_scalar("Loss/test", loss.item(), epoch)
-            writer.add_scalar("Accuracy/train", batch_acc, epoch)
-            writer.add_scalar("Accuracy/test", batch_acc, epoch)
         if batch_number == 1:
             writer.add_graph(model, batch_x)
 
-        if batch_number % 10000 == 0 or batch_number == 1:
+        # Every 10 epochs
+        if batch_number % 1000 == 0 or batch_number == 1:
+            # Run validate scores
+            val_loss, val_acc = get_validation_scores(model, criterion, val_dataloader)
+
+            # Update Tensorboard writer
+            writer.add_scalar("Loss/train", loss.item(), epoch)
+            writer.add_scalar("Loss/test", val_loss, epoch)
+            writer.add_scalar("Accuracy/train", batch_acc, epoch)
+            writer.add_scalar("Accuracy/test", val_acc, epoch)
+
             output.write(
-                f"| {epoch:05d} | {losses.avg:.3f} | {acc.avg:.3f} | {int(curr_time)} |\n"
+                f"| {epoch:05d} | training    | {losses.avg:.3f} | {acc.avg:.3f} | ---------------- |\n"
+            )
+            output.write(
+                f"| ----------- | validation  | {val_loss:.3f} | {val_acc:.3f} | {int(curr_time)} |\n"
             )
             output.flush()
             if not args.test:
                 torch.save(model.state_dict(), model_path)
             losses.reset()
             acc.reset()
-            val_losses.reset()
-            val_acc.reset()
