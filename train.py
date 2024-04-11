@@ -75,22 +75,6 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=100):
     return np.mean(all_losses), np.mean(all_accs)
 
 
-# This code is copied from assignment_2.part2 main.py module.
-def adjust_warmup_lr(optimizer, epoch, args):
-    """Reduce warmup learning rate if specified in config.
-
-    Attribute args.warmup (int): an initial training "warmup" period where the
-        lr is very low.
-    """
-    epoch += 1
-    warm_up_lr = None
-    if epoch <= args.warmup:
-        warm_up_lr = args.lr * epoch / args.warmup
-    if warm_up_lr is not None:
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = warm_up_lr
-
-
 if __name__ == "__main__":
     # Parse arguments
     args = get_args()
@@ -138,7 +122,6 @@ if __name__ == "__main__":
     # Training loop
     for batch_number, batch in enumerate(dataloader, 1):
         epoch = round(batch_number // 100)
-        adjust_warmup_lr(optimizer, epoch, args)
 
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)

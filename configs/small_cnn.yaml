@@ -7,9 +7,6 @@ train:
   exponential_decay: 0.99
   # L2 Regularization lambda value.
   reg_l2: 0.0005
-  # Number of epochs that define the initial training warmup period at which
-  # the lr is very small.
-  warmup: 0 # To deactivate warmup set 0
   # Beta value for SGD with momentum.
   momentum: 0.9
   # TODO(rabrener): Model is not used yet. Use is in next CL.
