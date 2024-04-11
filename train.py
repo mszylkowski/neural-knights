@@ -12,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
 from torch.optim.lr_scheduler import ExponentialLR
 
-from model import NeuralKnight
+from models import SmallCNN
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
 from utils.meters import AverageMeter
 from utils.model import model_summary, accuracy
@@ -75,6 +75,12 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=100):
     return np.mean(all_losses), np.mean(all_accs)
 
 
+def get_model(args):
+    """Returns a model instantiation based on config args."""
+    if args.model == "SmallCNN":
+        return SmallCNN(device=DEVICE)
+
+
 if __name__ == "__main__":
     # Parse arguments
     args = get_args()
@@ -82,7 +88,7 @@ if __name__ == "__main__":
     parse_config_and_save_args(args)
 
     # Create model and helpers
-    model = NeuralKnight(device=DEVICE)
+    model = get_model(args)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(),
                           lr=args.lr,
