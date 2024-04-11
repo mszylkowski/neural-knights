@@ -1,0 +1,13 @@
+train:
+  # Batch size
+  batchsize: 512
+  # Learning rate
+  lr: 0.001
+  # Exponential decay gamma. Lower values reduce lr faster.
+  exponential_decay: 0.99
+  # L2 Regularization lambda value.
+  reg_l2: 0.0005
+  # Beta value for SGD with momentum.
+  momentum: 0.9
+  # TODO(rabrener): Model is not used yet. Use is in next CL.
+  model: SmallCNN # TODO(rabrener): List all options here
