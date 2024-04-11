@@ -1,9 +1,17 @@
 train:
+  # Batch size
   batchsize: 512
+  # Learning rate
   lr: 0.001
+  # L2 Regularization lambda value.
   reg_l2: 0.0005
+  # Pair (exactly tow) of steps (# epochs) at which the lr is reduced by an
+  # order of magnitude each.
   steps: [50, 100]
+  # Number of epochs that define the initial training warmup period at which
+  # the lr is very small.
   warmup: -1 # To deactivate warmup set -1
+  # Beta value for SGD with momentum.
   momentum: 0.9
   # TODO(rabrener): Model is not used yet. Use is in next CL.
   model: SmallCNN # TODO(rabrener): List all options here
