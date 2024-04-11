@@ -1,12 +1,16 @@
+import argparse
+import yaml
+
 from datetime import datetime
 from io import StringIO
 from time import time
+
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
-import argparse
+
 from model import NeuralKnight
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
 from utils.meters import AverageMeter
@@ -27,13 +31,6 @@ def get_args():
         help="Name of the current experiment. Used to save the model and details. Defaults to the date and time.",
     )
     parser.add_argument(
-        "--batchsize",
-        "-b",
-        type=int,
-        default=512,
-        help="Size of each batch. Defaults to 512.",
-    )
-    parser.add_argument(
         "--test",
         "-t",
         type=bool,
@@ -42,20 +39,22 @@ def get_args():
         action=argparse.BooleanOptionalAction,
     )
     parser.add_argument(
-        "--lr",
-        "-l",
-        type=float,
-        default=0.001,
-        help="Learning rate of stochastic gradient descent.",
-    )
-    parser.add_argument(
-        "--momentum",
-        "-m",
-        type=float,
-        default=0.9,
-        help="Momentum of stochastic gradient descent.",
+        "--config",
+        "-c",
+        type=str,
+        default="./configs/small_cnn.yaml",
+        help="Train config spec. Used to define model and hyperparameter values.",
     )
     return parser.parse_args()
+
+
+def parse_config_and_save_args(args):
+    """Load config.yaml, parse and save back into args."""
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
+    for key in config:
+        for k, v in config[key].items():
+            setattr(args, k, v)
 
 
 def get_validation_scores(model, criterion, dataloader, max_num_batches=100):
@@ -76,14 +75,41 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=100):
     return np.mean(all_losses), np.mean(all_accs)
 
 
+# This code is copied from assignment_2.part2 main.py module.
+def adjust_learning_rate(optimizer, epoch, args):
+    """Step-wise reduction in learning rate lr based on config values.
+
+    Attribute args.warmup (int): an initial training "warmup" period where the
+        lr is very low.
+    Attribute args.steps list[int]: a pair (exactly two) of steps where lr is
+        reduced by one or two orders of magnitude.
+    """
+    epoch += 1
+    if epoch <= args.warmup:
+        lr = args.lr * epoch / args.warmup
+    elif epoch > args.steps[1]:
+        lr = args.lr * 0.01
+    elif epoch > args.steps[0]:
+        lr = args.lr * 0.1
+    else:
+        lr = args.lr
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+
+
 if __name__ == "__main__":
     # Parse arguments
     args = get_args()
 
+    parse_config_and_save_args(args)
+
     # Create model and helpers
     model = NeuralKnight(device=DEVICE)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    optimizer = optim.SGD(model.parameters(),
+                          lr=args.lr,
+                          momentum=args.momentum,
+                          weight_decay=args.reg_l2)
 
     # Load data
     dataloader = get_datapipeline_pgn(batch_size=args.batchsize)
@@ -116,6 +142,9 @@ if __name__ == "__main__":
 
     # Training loop
     for batch_number, batch in enumerate(dataloader, 1):
+        epoch = round(batch_number // 100)
+        adjust_learning_rate(optimizer, epoch, args)
+
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
         batch_y = torch.tensor(batch_y, device=DEVICE)
@@ -132,7 +161,6 @@ if __name__ == "__main__":
         acc.update(batch_acc, outputs.shape[0])
 
         curr_time = time() - start
-        epoch = round(batch_number // 100)
         if batch_number % 100 == 0:
             print(
                 f"[Epoch {epoch:05d}] "
