@@ -1,0 +1,9 @@
+train:
+  batchsize: 512
+  lr: 0.001
+  reg_l2: 0.0005
+  steps: [50, 100]
+  warmup: -1 # To deactivate warmup set -1
+  momentum: 0.9
+  # TODO(rabrener): Model is not used yet. Use is in next CL.
+  model: SmallCNN # TODO(rabrener): List all options here
