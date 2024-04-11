@@ -1,12 +1,17 @@
+import argparse
+import yaml
+
 from datetime import datetime
 from io import StringIO
 from time import time
+
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
-import argparse
+from torch.optim.lr_scheduler import ExponentialLR
+
 from model import NeuralKnight
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
 from utils.meters import AverageMeter
@@ -27,13 +32,6 @@ def get_args():
         help="Name of the current experiment. Used to save the model and details. Defaults to the date and time.",
     )
     parser.add_argument(
-        "--batchsize",
-        "-b",
-        type=int,
-        default=512,
-        help="Size of each batch. Defaults to 512.",
-    )
-    parser.add_argument(
         "--test",
         "-t",
         type=bool,
@@ -42,20 +40,21 @@ def get_args():
         action=argparse.BooleanOptionalAction,
     )
     parser.add_argument(
-        "--lr",
-        "-l",
-        type=float,
-        default=0.001,
-        help="Learning rate of stochastic gradient descent.",
-    )
-    parser.add_argument(
-        "--momentum",
-        "-m",
-        type=float,
-        default=0.9,
-        help="Momentum of stochastic gradient descent.",
+        "--config",
+        "-c",
+        type=argparse.FileType(),
+        default="./configs/small_cnn.yaml",
+        help="Train config spec. Used to define model and hyperparameter values.",
     )
     return parser.parse_args()
+
+
+def parse_config_and_save_args(args):
+    """Load config.yaml, parse and save back into args."""
+    config = yaml.safe_load(args.config)
+    for key in config:
+        for k, v in config[key].items():
+            setattr(args, k, v)
 
 
 def get_validation_scores(model, criterion, dataloader, max_num_batches=100):
@@ -80,10 +79,16 @@ if __name__ == "__main__":
     # Parse arguments
     args = get_args()
 
+    parse_config_and_save_args(args)
+
     # Create model and helpers
     model = NeuralKnight(device=DEVICE)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    optimizer = optim.SGD(model.parameters(),
+                          lr=args.lr,
+                          momentum=args.momentum,
+                          weight_decay=args.reg_l2)
+    scheduler = ExponentialLR(optimizer, gamma=args.exponential_decay)
 
     # Load data
     dataloader = get_datapipeline_pgn(batch_size=args.batchsize)
@@ -104,7 +109,7 @@ if __name__ == "__main__":
         f"# Training `{name}`\n\nStarted on `{datetime.now()}`\n\n"
         f"**Description:** Add description here\n\nArguments:\n{arg_str}\n\n"
         f"## Model\n\nSaved in `{model_path}`\n\n```\n{summary_str}\n```\n\n"
-        "## Training\n\n| Epoch | Loss | Acc | Time |\n| - | - | - | - |\n"
+        "## Training\n\n| Epoch | Train/Val | Loss | Acc | Time |\n| - | - | - | - | - |\n"
     )
     output.flush()
 
@@ -116,6 +121,8 @@ if __name__ == "__main__":
 
     # Training loop
     for batch_number, batch in enumerate(dataloader, 1):
+        epoch = round(batch_number // 100)
+
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
         batch_y = torch.tensor(batch_y, device=DEVICE)
@@ -132,7 +139,6 @@ if __name__ == "__main__":
         acc.update(batch_acc, outputs.shape[0])
 
         curr_time = time() - start
-        epoch = round(batch_number // 100)
         if batch_number % 100 == 0:
             print(
                 f"[Epoch {epoch:05d}] "
@@ -153,10 +159,10 @@ if __name__ == "__main__":
             writer.add_scalar("Accuracy/test", val_acc, epoch)
 
             output.write(
-                f"| {epoch:05d} | training    | {losses.avg:.3f} | {acc.avg:.3f} | ---------------- |\n"
+                f"| {epoch:05d} | training | {losses.avg:.3f} | {acc.avg:.3f} | ---------- |\n"
             )
             output.write(
-                f"| ----------- | validation  | {val_loss:.3f} | {val_acc:.3f} | {int(curr_time)} |\n"
+                f"| -------- | validation | {val_loss:.3f} | {val_acc:.3f} | {int(curr_time)} |\n"
             )
             output.flush()
             if not args.test:
