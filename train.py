@@ -10,6 +10,7 @@ import torch
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
+from torch.optim.lr_scheduler import ExponentialLR
 
 from model import NeuralKnight
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
@@ -41,7 +42,7 @@ def get_args():
     parser.add_argument(
         "--config",
         "-c",
-        type=str,
+        type=argparse.FileType(),
         default="./configs/small_cnn.yaml",
         help="Train config spec. Used to define model and hyperparameter values.",
     )
@@ -50,8 +51,7 @@ def get_args():
 
 def parse_config_and_save_args(args):
     """Load config.yaml, parse and save back into args."""
-    with open(args.config) as f:
-        config = yaml.safe_load(f)
+    config = yaml.safe_load(args.config)
     for key in config:
         for k, v in config[key].items():
             setattr(args, k, v)
@@ -76,25 +76,19 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=100):
 
 
 # This code is copied from assignment_2.part2 main.py module.
-def adjust_learning_rate(optimizer, epoch, args):
-    """Step-wise reduction in learning rate lr based on config values.
+def adjust_warmup_lr(optimizer, epoch, args):
+    """Reduce warmup learning rate if specified in config.
 
     Attribute args.warmup (int): an initial training "warmup" period where the
         lr is very low.
-    Attribute args.steps list[int]: a pair (exactly two) of steps where lr is
-        reduced by one or two orders of magnitude.
     """
     epoch += 1
+    warm_up_lr = None
     if epoch <= args.warmup:
-        lr = args.lr * epoch / args.warmup
-    elif epoch > args.steps[1]:
-        lr = args.lr * 0.01
-    elif epoch > args.steps[0]:
-        lr = args.lr * 0.1
-    else:
-        lr = args.lr
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+        warm_up_lr = args.lr * epoch / args.warmup
+    if warm_up_lr is not None:
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = warm_up_lr
 
 
 if __name__ == "__main__":
@@ -110,6 +104,7 @@ if __name__ == "__main__":
                           lr=args.lr,
                           momentum=args.momentum,
                           weight_decay=args.reg_l2)
+    scheduler = ExponentialLR(optimizer, gamma=args.exponential_decay)
 
     # Load data
     dataloader = get_datapipeline_pgn(batch_size=args.batchsize)
@@ -143,7 +138,7 @@ if __name__ == "__main__":
     # Training loop
     for batch_number, batch in enumerate(dataloader, 1):
         epoch = round(batch_number // 100)
-        adjust_learning_rate(optimizer, epoch, args)
+        adjust_warmup_lr(optimizer, epoch, args)
 
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
