@@ -125,7 +125,7 @@ if __name__ == "__main__":
         f"# Training `{name}`\n\nStarted on `{datetime.now()}`\n\n"
         f"**Description:** Add description here\n\nArguments:\n{arg_str}\n\n"
         f"## Model\n\nSaved in `{model_path}`\n\n```\n{summary_str}\n```\n\n"
-        "## Training\n\n| Epoch | Loss | Acc | Time |\n| - | - | - | - |\n"
+        "## Training\n\n| Epoch | Train/Val | Loss | Acc | Time |\n| - | - | - | - | - |\n"
     )
     output.flush()
 
@@ -176,10 +176,10 @@ if __name__ == "__main__":
             writer.add_scalar("Accuracy/test", val_acc, epoch)
 
             output.write(
-                f"| {epoch:05d} | training    | {losses.avg:.3f} | {acc.avg:.3f} | ---------------- |\n"
+                f"| {epoch:05d} | training | {losses.avg:.3f} | {acc.avg:.3f} | ---------- |\n"
             )
             output.write(
-                f"| ----------- | validation  | {val_loss:.3f} | {val_acc:.3f} | {int(curr_time)} |\n"
+                f"| -------- | validation | {val_loss:.3f} | {val_acc:.3f} | {int(curr_time)} |\n"
             )
             output.flush()
             if not args.test:
