@@ -158,7 +158,6 @@ if __name__ == "__main__":
         if batch_number == 1:
             writer.add_graph(model, batch_x)
 
-
         # Every 10 epochs
         if batch_number % 1000 == 0 or batch_number == 1:
             # Run validate scores
