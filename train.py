@@ -14,6 +14,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 from models import SmallCNN
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
+from utils.prettyprint import config_to_markdown_list
 from utils.meters import AverageMeter
 from utils.model import model_summary, accuracy
 
@@ -49,9 +50,12 @@ def get_args():
     return parser.parse_args()
 
 
-def parse_config_and_save_args(args):
-    """Load config.yaml, parse and save back into args."""
-    config = yaml.safe_load(args.config)
+def parse_config(config_path):
+    """Load config.yaml and parse."""
+    return 
+
+def save_config_to_args(config, args):
+    """Save config back into args for convenience."""
     for key in config:
         for k, v in config[key].items():
             setattr(args, k, v)
@@ -85,7 +89,8 @@ if __name__ == "__main__":
     # Parse arguments
     args = get_args()
 
-    parse_config_and_save_args(args)
+    config = yaml.safe_load(args.config)
+    save_config_to_args(config, args)
 
     # Create model and helpers
     model = get_model(args)
@@ -124,6 +129,9 @@ if __name__ == "__main__":
     writer = SummaryWriter(f"runs/{name}")
     start = time()
 
+    # Write summary of trainiing config to Tensorboard
+    writer.add_text("Training Configuration", config_to_markdown_list(config))
+
     # Training loop
     for batch_number, batch in enumerate(dataloader, 1):
         epoch = round(batch_number // 100)
@@ -153,6 +161,10 @@ if __name__ == "__main__":
         if batch_number == 1:
             writer.add_graph(model, batch_x)
 
+        # Training - Update Tensorboard writer
+        writer.add_scalar("Loss/train", loss.item(), epoch)
+        writer.add_scalar("Accuracy/train", batch_acc, epoch)
+
         # Every 10 epochs
         if batch_number % 1000 == 0 or batch_number == 1:
             # Run validate scores
@@ -163,10 +175,8 @@ if __name__ == "__main__":
                 f"-> valid loss: {val_loss:.3f}, acc: {val_acc:.3f}, time: {curr_time:.1f}"
             )
 
-            # Update Tensorboard writer
-            writer.add_scalar("Loss/train", loss.item(), epoch)
+            # Validation - Update Tensorboard writer
             writer.add_scalar("Loss/test", val_loss, epoch)
-            writer.add_scalar("Accuracy/train", batch_acc, epoch)
             writer.add_scalar("Accuracy/test", val_acc, epoch)
             writer.add_scalar("Optimizer/LR", scheduler.get_last_lr()[0], epoch)
 
