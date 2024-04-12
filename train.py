@@ -12,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
 from torch.optim.lr_scheduler import ExponentialLR
 
-from models import SmallCNN
+from models import Linear, SmallCNN
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
 from utils.meters import AverageMeter
 from utils.model import model_summary, accuracy
@@ -77,6 +77,8 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=10):
 
 def get_model(args):
     """Returns a model instantiation based on config args."""
+    if args.model == "Linear":
+        return Linear(device=DEVICE)
     if args.model == "SmallCNN":
         return SmallCNN(device=DEVICE)
 
