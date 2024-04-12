@@ -57,7 +57,7 @@ def parse_config_and_save_args(args):
             setattr(args, k, v)
 
 
-def get_validation_scores(model, criterion, dataloader, max_num_batches=100):
+def get_validation_scores(model, criterion, dataloader, max_num_batches=10):
     all_losses = np.zeros(max_num_batches, dtype=np.float32)
     all_accs = np.zeros(max_num_batches, dtype=np.float32)
     for batch_number in range(max_num_batches):
@@ -84,10 +84,9 @@ if __name__ == "__main__":
     # Create model and helpers
     model = NeuralKnight(device=DEVICE)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(),
-                          lr=args.lr,
-                          momentum=args.momentum,
-                          weight_decay=args.reg_l2)
+    optimizer = optim.SGD(
+        model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.reg_l2
+    )
     scheduler = ExponentialLR(optimizer, gamma=args.exponential_decay)
 
     # Load data
@@ -137,6 +136,7 @@ if __name__ == "__main__":
         losses.update(loss.item(), outputs.shape[0])
         batch_acc = accuracy(outputs, batch_y)
         acc.update(batch_acc, outputs.shape[0])
+        scheduler.step(epoch)
 
         curr_time = time() - start
         if batch_number % 100 == 0:
@@ -151,12 +151,18 @@ if __name__ == "__main__":
         if batch_number % 1000 == 0 or batch_number == 1:
             # Run validate scores
             val_loss, val_acc = get_validation_scores(model, criterion, val_dataloader)
+            curr_time = time() - start
+            print(
+                "           "
+                f"-> valid loss: {val_loss:.3f}, acc: {val_acc:.3f}, time: {curr_time:.1f}"
+            )
 
             # Update Tensorboard writer
             writer.add_scalar("Loss/train", loss.item(), epoch)
             writer.add_scalar("Loss/test", val_loss, epoch)
             writer.add_scalar("Accuracy/train", batch_acc, epoch)
             writer.add_scalar("Accuracy/test", val_acc, epoch)
+            writer.add_scalar("Optimizer/LR", scheduler.get_last_lr()[0], epoch)
 
             output.write(
                 f"| {epoch:05d} | training | {losses.avg:.3f} | {acc.avg:.3f} | ---------- |\n"
