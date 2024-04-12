@@ -14,7 +14,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 from models import SmallCNN
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
-from utils.prettyprint import config_to_markdown_list
+from utils.prettyprint import config_to_markdown
 from utils.meters import AverageMeter
 from utils.model import model_summary, accuracy
 
@@ -126,7 +126,8 @@ if __name__ == "__main__":
     start = time()
 
     # Write summary of trainiing config to Tensorboard
-    writer.add_text("Training Configuration", config_to_markdown_list(config))
+    writer.add_text("Training Configuration",
+                    config_to_markdown(args.config.name, config))
 
     # Training loop
     for batch_number, batch in enumerate(dataloader, 1):
