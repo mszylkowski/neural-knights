@@ -50,10 +50,6 @@ def get_args():
     return parser.parse_args()
 
 
-def parse_config(config_path):
-    """Load config.yaml and parse."""
-    return 
-
 def save_config_to_args(config, args):
     """Save config back into args for convenience."""
     for key in config:
@@ -161,9 +157,6 @@ if __name__ == "__main__":
         if batch_number == 1:
             writer.add_graph(model, batch_x)
 
-        # Training - Update Tensorboard writer
-        writer.add_scalar("Loss/train", loss.item(), epoch)
-        writer.add_scalar("Accuracy/train", batch_acc, epoch)
 
         # Every 10 epochs
         if batch_number % 1000 == 0 or batch_number == 1:
@@ -175,8 +168,10 @@ if __name__ == "__main__":
                 f"-> valid loss: {val_loss:.3f}, acc: {val_acc:.3f}, time: {curr_time:.1f}"
             )
 
-            # Validation - Update Tensorboard writer
+            # Update Tensorboard writer
+            writer.add_scalar("Loss/train", loss.item(), epoch)
             writer.add_scalar("Loss/test", val_loss, epoch)
+            writer.add_scalar("Accuracy/train", batch_acc, epoch)
             writer.add_scalar("Accuracy/test", val_acc, epoch)
             writer.add_scalar("Optimizer/LR", scheduler.get_last_lr()[0], epoch)
 
