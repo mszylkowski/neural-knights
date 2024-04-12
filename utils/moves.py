@@ -1,6 +1,9 @@
 import re
 
 NUMBER_RE = re.compile(r"\d")
+NUM_OF_SQUARES = 64
+# Pawns, Rooks, Knights, Bishops, Queens, and Kings X 2 players.
+NUM_OF_PIECE_TYPES = 12
 
 
 def __flatten(xss):

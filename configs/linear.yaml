@@ -9,4 +9,4 @@ train:
   reg_l2: 0.0005
   # Beta value for SGD with momentum.
   momentum: 0.9
-  model: SmallCNN # e.g.: Linear, SmallCNN, etc.
+  model: Linear # e.g.: Linear, SmallCNN, etc.
