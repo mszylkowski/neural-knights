@@ -4,7 +4,7 @@ import torch
 from utils.moves import get_all_moves
 
 
-class NeuralKnight(nn.Module):
+class SmallCNN(nn.Module):
     def __init__(self, device: torch.device | None = None) -> None:
         super().__init__()
         self.outputs = len(get_all_moves())
