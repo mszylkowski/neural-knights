@@ -14,6 +14,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 from models import Linear, SmallCNN
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
+from utils.prettyprint import config_to_markdown
 from utils.meters import AverageMeter
 from utils.model import model_summary, accuracy
 
@@ -49,9 +50,8 @@ def get_args():
     return parser.parse_args()
 
 
-def parse_config_and_save_args(args):
-    """Load config.yaml, parse and save back into args."""
-    config = yaml.safe_load(args.config)
+def save_config_to_args(config, args):
+    """Save config back into args for convenience."""
     for key in config:
         for k, v in config[key].items():
             setattr(args, k, v)
@@ -87,7 +87,8 @@ if __name__ == "__main__":
     # Parse arguments
     args = get_args()
 
-    parse_config_and_save_args(args)
+    config = yaml.safe_load(args.config)
+    save_config_to_args(config, args)
 
     # Create model and helpers
     model = get_model(args)
@@ -125,6 +126,10 @@ if __name__ == "__main__":
     acc = AverageMeter()
     writer = SummaryWriter(f"runs/{name}")
     start = time()
+
+    # Write summary of trainiing config to Tensorboard
+    writer.add_text("Training Configuration",
+                    config_to_markdown(args.config.name, config))
 
     # Training loop
     for batch_number, batch in enumerate(dataloader, 1):
