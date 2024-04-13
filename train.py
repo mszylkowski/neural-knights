@@ -12,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
 from torch.optim.lr_scheduler import ExponentialLR
 
-from models import Linear, SmallCNN
+from models import Linear, SmallCNN, ResNet
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
 from utils.prettyprint import config_to_markdown
 from utils.meters import AverageMeter
@@ -81,6 +81,8 @@ def get_model(args):
         return Linear(device=DEVICE)
     if args.model == "SmallCNN":
         return SmallCNN(device=DEVICE)
+    if args.model == "ResNet":
+        return ResNet(device=DEVICE)
 
 
 if __name__ == "__main__":
@@ -100,7 +102,7 @@ if __name__ == "__main__":
 
     # Load data
     dataloader = get_datapipeline_pgn(batch_size=args.batchsize)
-    val_dataloader = get_validation_pgns()
+    val_dataloader = get_validation_pgns(batch_size=args.batchsize)
     summary_str = model_summary(model, batchsize=args.batchsize)
     args.criterion = criterion
     args.optimizer = optimizer
