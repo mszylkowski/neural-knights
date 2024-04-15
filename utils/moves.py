@@ -1,4 +1,5 @@
 import re
+import numpy as np
 
 NUMBER_RE = re.compile(r"\d")
 NUM_OF_SQUARES = 64
