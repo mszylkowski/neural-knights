@@ -47,12 +47,10 @@ class SimpleSkipLayer(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, device: torch.device | None = None,
+    def __init__(self, device: torch.device | None = None, num_filters = 64,
                  apply_batch_norm=False) -> None:
         super().__init__()
         self.outputs = len(get_all_moves())
-
-        num_filters = 64
 
         self.first_conv = nn.Conv2d(12, num_filters, kernel_size=3, padding=1)
         self.res = nn.Sequential(
