@@ -91,7 +91,7 @@ def str_to_bitboards(
         elif line.startswith("[TimeControl"):
             control = line[14:-2]
             base = control.split("+")[0]
-            if base != "-" and int(base) < 150:
+            if base != "-" or int(base) < 150:
                 return None
     if not len(moves):
         # Abandoned games without any moves.
