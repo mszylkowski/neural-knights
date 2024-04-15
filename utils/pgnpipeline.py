@@ -8,6 +8,7 @@ from torchdata.datapipes.iter import (
     FileOpener,
     MultiplexerLongest,
 )
+import numpy as np
 from torch.utils.data.datapipes.datapipe import IterDataPipe
 from torchdata.datapipes.utils import StreamWrapper
 from pyzstd import EndlessZstdDecompressor
@@ -15,6 +16,7 @@ import re
 
 from utils.pgn import str_to_bitboards
 from utils.progressbar import ProgressBar
+from utils.moves import NUM_OF_PIECE_TYPES, PAD_BOARD, PAD_MOVE
 
 READ_SIZE = 100_000
 SCORE_SPLITTER = re.compile(r"(?:(?:1|0|1\/2)-(?:1|0|1\/2)|\*)\n\n")
@@ -25,13 +27,47 @@ def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
+def get_many_positions(game_moves: list[tuple[np.ndarray, int]],
+                       cpositions: int) -> tuple[np.array, np.array]:
+    """Return consecutive pairs of board positions and moves.
+
+    Consecutive positions start at a random move number in the game to sample
+    from openings, middle games and endings. If the cpositions exceeds the
+    available moves in the game, pad the arrays with special values.
+
+    Parameters:
+    game_moves: A list of board-move pairs.
+    cpositions: The number of positions/moves to return as input for
+        transformer sequence inputs.
+
+    Returns:
+    A pair of position-move numpy arrays. The position array has dimensions
+    cpositions x 12 x 8 x 8, where 12 corresponds to the piece types, and
+    8 x 8 the number of board squares.
+    """
+    num_moves = len(game_moves)
+    start_move_index = np.random.randint(0, num_moves)
+    num_positions = min(cpositions, num_moves - start_move_index)
+    result_pos = np.full((cpositions, NUM_OF_SQUARES, 8, 8), PAD_BOARD,
+                         dtype=np.int8)
+    result_moves = np.full((cpositions,), PAD_MOVE, dtype=np.int)
+    for i in range(num_positions):
+        curr_pos, curr_move = game_moves[start_move_index + i]
+        result_pos[i] = curr_pos
+        result_move[i] = curr_move
+    return (result_pos, result_move)
+
+
 class ZstdDecompressor(IterDataPipe):
     class Decompressor:
-        def __init__(self, stream: StreamWrapper, pool: PoolType) -> None:
+        def __init__(self, stream: StreamWrapper,
+                     pool: PoolType,
+                     consecutive_positions: int) -> None:
             self.zstd = EndlessZstdDecompressor()
             self.stream = stream
             self.last_part = ""
             self.__pool = pool
+            self._cpositions = consecutive_positions
 
         def __iter__(self):
             for chunk in self.__iter_chunk():
@@ -39,7 +75,14 @@ class ZstdDecompressor(IterDataPipe):
                 self.last_part = games_strs.pop()
                 result = self.__pool.map(str_to_bitboards, games_strs)
                 for r in result:
-                    if r:
+                    # First check if r is None and skip all.
+                    if not r:
+                        pass
+                    elif self._cpositions > 1:
+                        # Adjust r for Transformer input with multiple
+                        # consecutive positions.
+                        yield get_many_positions(r, self._cpositions)
+                    else:
                         yield from r
 
         def __iter_chunk(self):
@@ -66,14 +109,14 @@ class ZstdDecompressor(IterDataPipe):
             yield decompressor
 
 
-def get_datapipeline_pgn(batch_size=512):
+def get_datapipeline_pgn(batch_size=512, consecutive_positions=1):
     file_lister = FileLister(
         root="data/", masks="lichess_db_standard_rated_*.pgn.zst"
     ).open_files("b")
     print("Using files for training:")
     for f, _ in file_lister:
         print("-", f)
-    file_decompressor = ZstdDecompressor(file_lister)  # type: ignore
+    file_decompressor = ZstdDecompressor(file_lister, consecutive_positions)
     dataloader = (
         MultiplexerLongest(*file_decompressor)
         .shuffle(buffer_size=batch_size * 10)

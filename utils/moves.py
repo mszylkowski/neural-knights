@@ -5,6 +5,10 @@ NUM_OF_SQUARES = 64
 # Pawns, Rooks, Knights, Bishops, Queens, and Kings X 2 players.
 NUM_OF_PIECE_TYPES = 12
 
+# Used to pad sequence of moves after the game ended for transformer training.
+PAD_BOARD = np.zeros((NUM_OF_PIECE_TYPES, 8, 8))
+PAD_MOVE = -1
+
 
 def __flatten(xss):
     return [x for xs in xss for x in xs]
