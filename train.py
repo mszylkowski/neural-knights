@@ -101,8 +101,13 @@ if __name__ == "__main__":
     scheduler = ExponentialLR(optimizer, gamma=args.exponential_decay)
 
     # Load data
-    dataloader = get_datapipeline_pgn(batch_size=args.batchsize)
-    val_dataloader = get_validation_pgns(batch_size=args.batchsize)
+    consecutive_positions = getattr(args, "consecutive_positions", 1)
+    if consecutive_positions > 1 and args.model != 'Transformer':
+        raise ValueError("Only Transformer models support consecutive_positions")
+    dataloader = get_datapipeline_pgn(batch_size=args.batchsize,
+                                      consecutive_positions=consecutive_positions)
+    val_dataloader = get_validation_pgns(batch_size=args.batchsize,
+                                         consecutive_positions=consecutive_positions)
     summary_str = model_summary(model, batchsize=args.batchsize)
     args.criterion = criterion
     args.optimizer = optimizer
