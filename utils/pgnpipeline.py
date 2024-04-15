@@ -99,13 +99,16 @@ class ZstdDecompressor(IterDataPipe):
                     continue
                 yield chunk.decode("utf-8")
 
-    def __init__(self, file_opener: FileOpener) -> None:
+    def __init__(self, file_opener: FileOpener, consecutive_positions: int) -> None:
         self.file_opener = file_opener
         self.pool = Pool(MAX_POOLS, initializer=init_worker)
+        self._cpositions = consecutive_positions
 
     def __iter__(self):
         for filename, file_stream in self.file_opener:
-            decompressor = ZstdDecompressor.Decompressor(file_stream, self.pool)
+            decompressor = ZstdDecompressor.Decompressor(file_stream,
+                                                         self.pool,
+                                                         self._cpositions)
             yield decompressor
 
 
@@ -125,13 +128,13 @@ def get_datapipeline_pgn(batch_size=512, consecutive_positions=1):
     return dataloader
 
 
-def get_validation_pgns(batch_size=512):
+def get_validation_pgns(batch_size=512, consecutive_positions=1):
     file_lister = FileLister(
         root="data/", masks="validation_lichess_db_standard_rated_*.pgn.zst"
     ).open_files("b")
     assert len(list(file_lister)) > 0, "No validation files found"
 
-    file_decompressor = ZstdDecompressor(file_lister)
+    file_decompressor = ZstdDecompressor(file_lister, consecutive_positions)
     dataloader = (
         MultiplexerLongest(*file_decompressor)
         .shuffle(buffer_size=batch_size * 10)
