@@ -1,13 +1,13 @@
 from torch import nn
 import torch
 
-from utils.moves import get_all_moves
+from utils.moves import NUM_POSSIBLE_MOVES
 
 
 class SmallCNN(nn.Module):
     def __init__(self, device: torch.device | None = None) -> None:
         super().__init__()
-        self.outputs = len(get_all_moves())
+        self.outputs = NUM_POSSIBLE_MOVES
 
         self.cnn1 = nn.Conv2d(12, 64, kernel_size=3, padding=1)
         self.activation = nn.ELU()
