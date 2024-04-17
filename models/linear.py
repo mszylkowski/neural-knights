@@ -1,14 +1,14 @@
 from torch import nn
 import torch
 
-from utils.moves import get_all_moves, NUM_OF_SQUARES, NUM_OF_PIECE_TYPES
+from utils.moves import NUM_POSSIBLE_MOVES, NUM_OF_SQUARES, NUM_OF_PIECE_TYPES
 
 
 class Linear(nn.Module):
     def __init__(self, device: torch.device | None = None, hid_scaler: int = 5) -> None:
         super().__init__()
         self.inputs = NUM_OF_SQUARES * NUM_OF_PIECE_TYPES
-        self.outputs = len(get_all_moves())
+        self.outputs = NUM_POSSIBLE_MOVES
         hidden_size = self.inputs * hid_scaler
 
         self.fc1 = nn.Linear(self.inputs, hidden_size)
