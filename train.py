@@ -12,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
 from torch.optim.lr_scheduler import ExponentialLR
 
-from models import Linear, SmallCNN, ResNet
+from models import Linear, ResNet, SmallCNN, Transformer
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
 from utils.prettyprint import config_to_markdown
 from utils.meters import AverageMeter
@@ -64,10 +64,16 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=10):
         batch = next(iter(dataloader))
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
-        batch_y = torch.tensor(batch_y, device=DEVICE)
+        batch_y = torch.tensor(batch_y, device=DEVICE, dtype=torch.long)
 
         with torch.no_grad():
-            outputs = model.forward(batch_x)
+            if model.__class__.__name__ == 'Transformer':
+                outputs = model.forward(batch_x, batch_y)
+                # Collapse the batchsize and consecutive_positions.
+                outputs = outputs.view(-1, outputs.shape[-1])
+                batch_y = batch_y.view(-1)
+            else:
+                outputs = model.forward(batch_x)
             loss = criterion(outputs, batch_y)
             batch_acc = accuracy(outputs, batch_y)
         all_losses[batch_number] = loss.item()
@@ -83,6 +89,8 @@ def get_model(args):
         return SmallCNN(device=DEVICE)
     if args.model == "ResNet":
         return ResNet(device=DEVICE)
+    if args.model == "Transformer":
+        return Transformer(device=DEVICE)
 
 
 if __name__ == "__main__":
@@ -104,11 +112,14 @@ if __name__ == "__main__":
     consecutive_positions = getattr(args, "consecutive_positions", 1)
     if consecutive_positions > 1 and args.model != 'Transformer':
         raise ValueError("Only Transformer models support consecutive_positions")
+    elif args.model == 'Transformer' and consecutive_positions < 2:
+        raise ValueError("Transformer models require consecutive_positions > 1")
     dataloader = get_datapipeline_pgn(batch_size=args.batchsize,
                                       consecutive_positions=consecutive_positions)
     val_dataloader = get_validation_pgns(batch_size=args.batchsize,
                                          consecutive_positions=consecutive_positions)
-    summary_str = model_summary(model, batchsize=args.batchsize)
+    summary_str = model_summary(model, batchsize=args.batchsize,
+                                consecutive_positions=consecutive_positions)
     args.criterion = criterion
     args.optimizer = optimizer
 
@@ -144,10 +155,27 @@ if __name__ == "__main__":
 
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
-        batch_y = torch.tensor(batch_y, device=DEVICE)
+        batch_y = torch.tensor(batch_y, device=DEVICE, dtype=torch.long)
         optimizer.zero_grad()
 
-        outputs = model.forward(batch_x)
+        if batch_number == 1:
+            if args.model == "Transformer":
+                # TODO(rabrener): figure out why we're getting error:
+                # 'ERROR: Graphs differed across invocations!  Graph diff:'
+                # 'First diverging operator...'.
+                # and how to fix it.
+                #writer.add_graph(model, (batch_x, batch_y))
+                pass
+            else:
+                writer.add_graph(model, batch_x)
+
+        if args.model == "Transformer":
+            outputs = model.forward(batch_x, batch_y)
+            # Collapse the batchsize and consecutive_positions.
+            outputs = outputs.view(args.batchsize*consecutive_positions, -1)
+            batch_y = batch_y.view(-1)
+        else:
+            outputs = model.forward(batch_x)
         loss = criterion(outputs, batch_y)
         loss.backward()
         optimizer.step()
@@ -164,8 +192,6 @@ if __name__ == "__main__":
                 f"[Epoch {epoch:05d}] "
                 f"train loss: {loss.item():.3f}, acc: {batch_acc:.3f}, time: {curr_time:.1f}"
             )
-        if batch_number == 1:
-            writer.add_graph(model, batch_x)
 
         # Every 10 epochs
         if batch_number % 1000 == 0 or batch_number == 1:
