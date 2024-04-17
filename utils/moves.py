@@ -8,7 +8,9 @@ NUM_OF_PIECE_TYPES = 12
 
 # Used to pad sequence of moves after the game ended for transformer training.
 PAD_BOARD = np.zeros((NUM_OF_PIECE_TYPES, 8, 8))
-PAD_MOVE = -1
+PAD_MOVE = 0
+# len(get_all_moves()) = 1794 => 1794 + 1 (for pad_move).
+NUM_POSSIBLE_MOVES = 1795
 
 
 def __flatten(xss):
@@ -47,7 +49,11 @@ def get_all_moves():
 
 
 __moves = get_all_moves()
-__moves_to_idx = {move: idx for idx, move in enumerate(__moves)}
+## Use 1-based index to leave room for zero pad index.
+__moves_to_idx = {move: idx for idx, move in enumerate(__moves, 1)}
+## Pad is not a real move. It is used to tell sequential models that the game
+## was over before the move sequence ended.
+__moves_to_idx['<pad>'] = PAD_MOVE
 
 
 def encode(move: str) -> int:
@@ -70,5 +76,8 @@ def mirror_move(uci_move: str) -> str:
 
 
 if __name__ == "__main__":
-    print(sorted(__moves))
     print(len(__moves))
+    print('### Moves:')
+    print(sorted(__moves))
+    print('### Move indices:')
+    print(__moves_to_idx)
