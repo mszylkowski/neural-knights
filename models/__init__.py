@@ -1,3 +1,4 @@
 from .linear import Linear
-from .small_cnn import SmallCNN
 from .resnet import ResNet
+from .small_cnn import SmallCNN
+from .transformer import Transformer

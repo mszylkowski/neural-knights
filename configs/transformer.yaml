@@ -1,0 +1,13 @@
+train:
+  # Smaller batch size to account for sequenced (larger) input.
+  batchsize: 2
+  # Learning rate
+  lr: 0.001
+  # Exponential decay gamma. Lower values reduce lr faster.
+  exponential_decay: 0.999
+  # L2 Regularization lambda value.
+  reg_l2: 0.0005
+  # Beta value for SGD with momentum.
+  momentum: 0.9
+  consecutive_positions: 2 # Transformers require >1
+  model: Transformer # e.g.: Linear, SmallCNN, etc.
