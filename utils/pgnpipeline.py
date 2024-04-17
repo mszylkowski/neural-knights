@@ -48,14 +48,14 @@ def get_many_positions(game_moves: list[tuple[np.ndarray, int]],
     num_moves = len(game_moves)
     start_move_index = np.random.randint(0, num_moves)
     num_positions = min(cpositions, num_moves - start_move_index)
-    result_pos = np.full((cpositions, NUM_OF_SQUARES, 8, 8), PAD_BOARD,
-                         dtype=np.int8)
-    result_moves = np.full((cpositions,), PAD_MOVE, dtype=np.int)
+    result_pos = np.full((cpositions, NUM_OF_PIECE_TYPES, 8, 8), PAD_BOARD,
+                         dtype=np.int32)
+    result_moves = np.full((cpositions,), PAD_MOVE, dtype=np.int32)
     for i in range(num_positions):
         curr_pos, curr_move = game_moves[start_move_index + i]
         result_pos[i] = curr_pos
-        result_move[i] = curr_move
-    return (result_pos, result_move)
+        result_moves[i] = curr_move
+    return (result_pos, result_moves)
 
 
 class ZstdDecompressor(IterDataPipe):
