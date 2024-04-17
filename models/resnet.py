@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from utils.moves import get_all_moves, NUM_OF_SQUARES
+from utils.moves import NUM_POSSIBLE_MOVES, NUM_OF_SQUARES
 
 
 def init_weights(m):
@@ -21,7 +21,7 @@ class SimpleSkipLayer(nn.Module):
     """
     def __init__(self, channels, apply_batch_norm=False):
         super().__init__()
-        self.outputs = len(get_all_moves())
+        self.outputs = NUM_POSSIBLE_MOVES
         self._apply_bnorm = apply_batch_norm
         
         self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
@@ -50,7 +50,7 @@ class ResNet(nn.Module):
     def __init__(self, device: torch.device | None = None, num_filters = 64,
                  apply_batch_norm=False) -> None:
         super().__init__()
-        self.outputs = len(get_all_moves())
+        self.outputs = NUM_POSSIBLE_MOVES
 
         self.first_conv = nn.Conv2d(12, num_filters, kernel_size=3, padding=1)
         self.res = nn.Sequential(
