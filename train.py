@@ -64,10 +64,16 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=10):
         batch = next(iter(dataloader))
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
-        batch_y = torch.tensor(batch_y, device=DEVICE)
+        batch_y = torch.tensor(batch_y, device=DEVICE, dtype=torch.long)
 
         with torch.no_grad():
-            outputs = model.forward(batch_x)
+            if model.__class__.__name__ == 'Transformer':
+                outputs = model.forward(batch_x, batch_y)
+                # Collapse the batchsize and consecutive_positions.
+                outputs = outputs.view(-1, outputs.shape[-1])
+                batch_y = batch_y.view(-1)
+            else:
+                outputs = model.forward(batch_x)
             loss = criterion(outputs, batch_y)
             batch_acc = accuracy(outputs, batch_y)
         all_losses[batch_number] = loss.item()
@@ -148,12 +154,20 @@ if __name__ == "__main__":
         epoch = round(batch_number // 100)
 
         batch_x, batch_y = zip(*batch)
-        print("len batch x: ", len(batch_x))
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
-        print("x shape: ", batch_x.shape)
         batch_y = torch.tensor(batch_y, device=DEVICE, dtype=torch.long)
-        print("y shape: ", batch_y.shape)
         optimizer.zero_grad()
+
+        if batch_number == 1:
+            if args.model == "Transformer":
+                # TODO(rabrener): figure out why we're getting error:
+                # 'ERROR: Graphs differed across invocations!  Graph diff:'
+                # 'First diverging operator...'.
+                # and how to fix it.
+                #writer.add_graph(model, (batch_x, batch_y))
+                pass
+            else:
+                writer.add_graph(model, batch_x)
 
         if args.model == "Transformer":
             outputs = model.forward(batch_x, batch_y)
@@ -162,7 +176,6 @@ if __name__ == "__main__":
             batch_y = batch_y.view(-1)
         else:
             outputs = model.forward(batch_x)
-        print("out shape: ", outputs.shape)
         loss = criterion(outputs, batch_y)
         loss.backward()
         optimizer.step()
@@ -179,11 +192,6 @@ if __name__ == "__main__":
                 f"[Epoch {epoch:05d}] "
                 f"train loss: {loss.item():.3f}, acc: {batch_acc:.3f}, time: {curr_time:.1f}"
             )
-        if batch_number == 1:
-            if args.model == "Transformer":
-                writer.add_graph(model, (batch_x, batch_y))
-            else:
-                writer.add_graph(model, batch_x)
 
         # Every 10 epochs
         if batch_number % 1000 == 0 or batch_number == 1:
