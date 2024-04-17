@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from utils.moves import get_all_moves, NUM_OF_SQUARES, NUM_OF_PIECE_TYPES, PAD_MOVE
+from utils.moves import NUM_POSSIBLE_MOVES, NUM_OF_SQUARES, NUM_OF_PIECE_TYPES, PAD_MOVE
 
 
 class Transformer(nn.Module):
@@ -21,8 +21,7 @@ class Transformer(nn.Module):
         self.hidden_dim = hidden_dim
         self.dim_feedforward = dim_feedforward
         self.sequence_length = sequence_length
-        self.output_size = len(get_all_moves())
-        print('### output size: ', self.output_size)
+        self.output_size = NUM_POSSIBLE_MOVES
         self.pad_idx=ignore_index
 
         # Initialize the transformer layer.
@@ -60,19 +59,10 @@ class Transformer(nn.Module):
         # Add posembed to src and tgt to take into account the sequential
         # nature of positions and moves.
         N, T, _ = src.shape
-        #print('emb src.shape: ', self.srcembeddingL(src).shape)
-        #print('src pose: ',
-              #self.srcposembeddingL(torch.arange(T).repeat((N,1))).shape)
-        print('tgt.shape: ', self.tgtembeddingL(tgt).shape)
-        print('tgt pose shape: ', self.tgtposembeddingL(torch.arange(T).repeat((N,1))).shape)
         src_embed = (src
                      + self.srcposembeddingL(torch.arange(T).repeat((N,1))))
-        try:
-            tgt_embed = (self.tgtembeddingL(tgt)
-                         + self.tgtposembeddingL(torch.arange(T).repeat((N,1))))
-        except IndexError:
-            print(tgt)
-            raise IndexError("index out of range in self")
+        tgt_embed = (self.tgtembeddingL(tgt)
+                     + self.tgtposembeddingL(torch.arange(T).repeat((N,1))))
 
         # Create target mask and target key padding mask for decoder - Both
         # have boolean values. We want to ignore (i.e. True(s)) lower triangle,
@@ -85,36 +75,3 @@ class Transformer(nn.Module):
                                    tgt_key_padding_mask=tgt_key_padding_mask)
         out = self.fc_final(out)
         return out
-
-    def generate_move(self, src):
-        """
-         This function generates the output of the transformer taking src as
-         its input it is assumed that the model is trained. The output would be
-         the translation of the input
-
-         :param src: a PyTorch tensor of shape (N,T)
-
-         :returns: the model outputs. Should be scores of shape (N,T,output_size).
-         """
-        #############################################################################
-        # TODO:
-        # Deliverable 5: You will be calling the transformer forward function to    #
-        # generate the translation for the input.                                   #
-        #############################################################################
-        N, T = src.shape
-        # initially set outputs as a tensor of zeros with dimensions (batch_size, seq_len, output_size)
-        outputs = torch.zeros(N, self.sequence_length, self.output_size)
-
-        tgt = torch.full_like(src, self.pad_idx)
-        tgt[:,0] = src[:,0]
-        for i in range(T):
-            t_outputs = self.forward(src, tgt)
-            # argmax (N, T) -> get top ith word
-            top_word = torch.argmax(t_outputs[:,i,:], dim=-1)
-            if i < T - 1:
-                tgt[:,i+1] = top_word
-            outputs[:,i,:] = t_outputs[:,i,:]
-        ##############################################################################
-        #                               END OF YOUR CODE                             #
-        ##############################################################################
-        return outputs
