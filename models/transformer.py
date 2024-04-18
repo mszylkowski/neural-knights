@@ -2,45 +2,54 @@ import numpy as np
 import torch
 from torch import nn
 
-from utils.moves import NUM_POSSIBLE_MOVES, NUM_OF_SQUARES, NUM_OF_PIECE_TYPES, PAD_MOVE
+from utils.moves import (NUM_POSSIBLE_MOVES, NUM_OF_SQUARES,
+    NUM_OF_PIECE_TYPES, PAD_MOVE, START_MOVE)
 
 
 class Transformer(nn.Module):
     def __init__(self, device: torch.device | None = None,
-                 hidden_dim: int = NUM_OF_SQUARES * NUM_OF_PIECE_TYPES,
                  num_heads: int = 2,
                  dim_feedforward: int = 2048,
                  num_layers_enc: int = 2,
                  num_layers_dec: int = 2,
                  dropout: float = 0.2,
                  sequence_length: int = 6,
-                 ignore_index: int = PAD_MOVE):
+                 ignore_index: int = PAD_MOVE,
+                 start_index: int = START_MOVE):
         super().__init__()
 
         self.num_heads = num_heads
-        self.hidden_dim = hidden_dim
+        self.hidden_dim = NUM_OF_SQUARES * NUM_OF_PIECE_TYPES
         self.dim_feedforward = dim_feedforward
         self.sequence_length = sequence_length
         self.output_size = NUM_POSSIBLE_MOVES
-        self.pad_idx=ignore_index
+        self.pad_idx = ignore_index
+        self.start_idx = start_index
 
         # Initialize the transformer layer.
-        self.transformer = nn.Transformer(d_model=hidden_dim, nhead=num_heads,
+        self.transformer = nn.Transformer(d_model=self.hidden_dim,
+                                          nhead=num_heads,
                                           num_encoder_layers=num_layers_enc,
                                           num_decoder_layers=num_layers_dec,
                                           dim_feedforward=dim_feedforward,
                                           dropout=dropout, batch_first=True)
         # Initialize embeddings.
-        self.srcposembeddingL = nn.Embedding(sequence_length, hidden_dim)
-        self.tgtembeddingL = nn.Embedding(self.output_size, hidden_dim)
-        self.tgtposembeddingL = nn.Embedding(sequence_length, hidden_dim)
+        self.srcposembeddingL = nn.Embedding(sequence_length, self.hidden_dim)
+        self.tgtembeddingL = nn.Embedding(self.output_size, self.hidden_dim)
+        self.tgtposembeddingL = nn.Embedding(sequence_length, self.hidden_dim)
         # Initialize final fc layer.
-        self.fc_final = nn.Linear(hidden_dim, self.output_size)
+        self.fc_final = nn.Linear(self.hidden_dim, self.output_size)
 
         if device:
             self.to(device)
 
-    def forward(self, src: torch.Tensor, tgt: torch.Tensor):
+    def _shift_tgt(self, tgt):
+        """Shifts tgt right by 1 and fills the first index with start_idx."""
+        modified_tgt = torch.full_like(tgt, self.start_idx)
+        modified_tgt[:, 1:] = tgt[:, :-1]
+        return modified_tgt
+
+    def forward(self, src: torch.Tensor, tgt: torch.Tensor, shift_tgt: bool = True):
         """Computes transfomer forward and returns outputs.
 
         Parameters:
@@ -52,6 +61,10 @@ class Transformer(nn.Module):
         """
         src = src.type(torch.int)
         tgt = tgt.type(torch.int)
+
+        if shift_tgt:
+            tgt = self._shift_tgt(tgt)
+            pass
 
         # Collaps src to a three dim tensor (N,T,12x8x8).
         src = src.view(src.size(0), src.size(1), -1)
