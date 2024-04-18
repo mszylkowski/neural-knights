@@ -7,7 +7,6 @@ from utils.moves import NUM_POSSIBLE_MOVES, NUM_OF_SQUARES, NUM_OF_PIECE_TYPES, 
 
 class Transformer(nn.Module):
     def __init__(self, device: torch.device | None = None,
-                 hidden_dim: int = NUM_OF_SQUARES * NUM_OF_PIECE_TYPES,
                  num_heads: int = 2,
                  dim_feedforward: int = 2048,
                  num_layers_enc: int = 2,
@@ -18,24 +17,25 @@ class Transformer(nn.Module):
         super().__init__()
 
         self.num_heads = num_heads
-        self.hidden_dim = hidden_dim
+        self.hidden_dim = NUM_OF_SQUARES * NUM_OF_PIECE_TYPES
         self.dim_feedforward = dim_feedforward
         self.sequence_length = sequence_length
         self.output_size = NUM_POSSIBLE_MOVES
         self.pad_idx=ignore_index
 
         # Initialize the transformer layer.
-        self.transformer = nn.Transformer(d_model=hidden_dim, nhead=num_heads,
+        self.transformer = nn.Transformer(d_model=self.hidden_dim,
+                                          nhead=num_heads,
                                           num_encoder_layers=num_layers_enc,
                                           num_decoder_layers=num_layers_dec,
                                           dim_feedforward=dim_feedforward,
                                           dropout=dropout, batch_first=True)
         # Initialize embeddings.
-        self.srcposembeddingL = nn.Embedding(sequence_length, hidden_dim)
-        self.tgtembeddingL = nn.Embedding(self.output_size, hidden_dim)
-        self.tgtposembeddingL = nn.Embedding(sequence_length, hidden_dim)
+        self.srcposembeddingL = nn.Embedding(sequence_length, self.hidden_dim)
+        self.tgtembeddingL = nn.Embedding(self.output_size, self.hidden_dim)
+        self.tgtposembeddingL = nn.Embedding(sequence_length, self.hidden_dim)
         # Initialize final fc layer.
-        self.fc_final = nn.Linear(hidden_dim, self.output_size)
+        self.fc_final = nn.Linear(self.hidden_dim, self.output_size)
 
         if device:
             self.to(device)

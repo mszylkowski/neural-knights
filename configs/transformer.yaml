@@ -9,5 +9,12 @@ train:
   reg_l2: 0.0005
   # Beta value for SGD with momentum.
   momentum: 0.9
-  consecutive_positions: 4 # Transformers require >1
   model: Transformer # e.g.: Linear, SmallCNN, etc.
+
+  # Transformer related arguments
+  consecutive_positions: 4 # Transformers require >1
+  num_heads: 2
+  dim_feedforward: 2048
+  num_layers_enc: 2
+  num_layers_dec: 2
+  dropout: 0.2
