@@ -8,7 +8,7 @@ from time import time
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard.writer import SummaryWriter
 import torch.optim as optim
 from torch.optim.lr_scheduler import ExponentialLR
 
@@ -67,7 +67,7 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=10):
         batch_y = torch.tensor(batch_y, device=DEVICE, dtype=torch.long)
 
         with torch.no_grad():
-            if model.__class__.__name__ == 'Transformer':
+            if model.__class__.__name__ == "Transformer":
                 outputs = model.forward(batch_x, batch_y)
                 # Collapse the batchsize and consecutive_positions.
                 outputs = outputs.view(-1, outputs.shape[-1])
@@ -81,7 +81,7 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=10):
     return np.mean(all_losses), np.mean(all_accs)
 
 
-def get_model(args):
+def get_model(args) -> nn.Module:
     """Returns a model instantiation based on config args."""
     if args.model == "Linear":
         return Linear(device=DEVICE)
@@ -90,13 +90,16 @@ def get_model(args):
     if args.model == "ResNet":
         return ResNet(device=DEVICE)
     if args.model == "Transformer":
-        return Transformer(device=DEVICE,
-                           num_heads=args.num_heads,
-                           dim_feedforward=args.dim_feedforward,
-                           num_layers_enc=args.num_layers_enc,
-                           num_layers_dec=args.num_layers_dec,
-                           dropout=args.dropout,
-                           sequence_length=args.consecutive_positions)
+        return Transformer(
+            device=DEVICE,
+            num_heads=args.num_heads,
+            dim_feedforward=args.dim_feedforward,
+            num_layers_enc=args.num_layers_enc,
+            num_layers_dec=args.num_layers_dec,
+            dropout=args.dropout,
+            sequence_length=args.consecutive_positions,
+        )
+    raise Exception("Model {args.model} not found")
 
 
 if __name__ == "__main__":
@@ -116,16 +119,19 @@ if __name__ == "__main__":
 
     # Load data
     consecutive_positions = getattr(args, "consecutive_positions", 1)
-    if consecutive_positions > 1 and args.model != 'Transformer':
+    if consecutive_positions > 1 and args.model != "Transformer":
         raise ValueError("Only Transformer models support consecutive_positions")
-    elif args.model == 'Transformer' and consecutive_positions < 2:
+    elif args.model == "Transformer" and consecutive_positions < 2:
         raise ValueError("Transformer models require consecutive_positions > 1")
-    dataloader = get_datapipeline_pgn(batch_size=args.batchsize,
-                                      consecutive_positions=consecutive_positions)
-    val_dataloader = get_validation_pgns(batch_size=args.batchsize,
-                                         consecutive_positions=consecutive_positions)
-    summary_str = model_summary(model, batchsize=args.batchsize,
-                                consecutive_positions=consecutive_positions)
+    dataloader = get_datapipeline_pgn(
+        batch_size=args.batchsize, consecutive_positions=consecutive_positions
+    )
+    val_dataloader = get_validation_pgns(
+        batch_size=args.batchsize, consecutive_positions=consecutive_positions
+    )
+    summary_str = model_summary(
+        model, batchsize=args.batchsize, consecutive_positions=consecutive_positions
+    )
     args.criterion = criterion
     args.optimizer = optimizer
 
@@ -152,8 +158,9 @@ if __name__ == "__main__":
     start = time()
 
     # Write summary of trainiing config to Tensorboard
-    writer.add_text("Training Configuration",
-                    config_to_markdown(args.config.name, config))
+    writer.add_text(
+        "Training Configuration", config_to_markdown(args.config.name, config)
+    )
 
     # Training loop
     for batch_number, batch in enumerate(dataloader, 1):
@@ -170,7 +177,7 @@ if __name__ == "__main__":
                 # 'ERROR: Graphs differed across invocations!  Graph diff:'
                 # 'First diverging operator...'.
                 # and how to fix it.
-                #writer.add_graph(model, (batch_x, batch_y))
+                # writer.add_graph(model, (batch_x, batch_y))
                 pass
             else:
                 writer.add_graph(model, batch_x)
@@ -178,7 +185,7 @@ if __name__ == "__main__":
         if args.model == "Transformer":
             outputs = model.forward(batch_x, batch_y)
             # Collapse the batchsize and consecutive_positions.
-            outputs = outputs.view(args.batchsize*consecutive_positions, -1)
+            outputs = outputs.view(args.batchsize * consecutive_positions, -1)
             batch_y = batch_y.view(-1)
         else:
             outputs = model.forward(batch_x)
@@ -190,7 +197,6 @@ if __name__ == "__main__":
         losses.update(loss.item(), outputs.shape[0])
         batch_acc = accuracy(outputs, batch_y)
         acc.update(batch_acc, outputs.shape[0])
-        scheduler.step(epoch)
 
         curr_time = time() - start
         if batch_number % 100 == 0:
@@ -198,7 +204,7 @@ if __name__ == "__main__":
                 f"[Epoch {epoch:05d}] "
                 f"train loss: {loss.item():.3f}, acc: {batch_acc:.3f}, time: {curr_time:.1f}"
             )
-
+            scheduler.step()
         # Every 10 epochs
         if batch_number % 1000 == 0 or batch_number == 1:
             # Run validate scores
@@ -214,7 +220,10 @@ if __name__ == "__main__":
             writer.add_scalar("Loss/test", val_loss, epoch)
             writer.add_scalar("Accuracy/train", batch_acc, epoch)
             writer.add_scalar("Accuracy/test", val_acc, epoch)
-            writer.add_scalar("Optimizer/LR", scheduler.get_last_lr()[0], epoch)
+            writer.add_scalar("Training/LR", scheduler.get_last_lr()[0], epoch)
+            writer.add_scalar(
+                "Training/Positions", args.batchsize * batch_number, epoch
+            )
 
             output.write(
                 f"| {epoch:05d} | training | {losses.avg:.3f} | {acc.avg:.3f} | ---------- |\n"
