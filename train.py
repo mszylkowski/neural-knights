@@ -90,7 +90,13 @@ def get_model(args):
     if args.model == "ResNet":
         return ResNet(device=DEVICE)
     if args.model == "Transformer":
-        return Transformer(device=DEVICE)
+        return Transformer(device=DEVICE,
+                           num_heads=args.num_heads,
+                           dim_feedforward=args.dim_feedforward,
+                           num_layers_enc=args.num_layers_enc,
+                           num_layers_dec=args.num_layers_dec,
+                           dropout=args.dropout,
+                           sequence_length=args.consecutive_positions)
 
 
 if __name__ == "__main__":
