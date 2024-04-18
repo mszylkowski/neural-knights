@@ -44,7 +44,7 @@ class Transformer(nn.Module):
             self.to(device)
 
     def _shift_tgt(self, tgt):
-        """Shifts right tgt by 1 and fills the first index with start_idx."""
+        """Shifts tgt right by 1 and fills the first index with start_idx."""
         modified_tgt = torch.full_like(tgt, self.start_idx)
         modified_tgt[:, 1:] = tgt[:, :-1]
         return modified_tgt
