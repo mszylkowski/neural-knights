@@ -9,8 +9,9 @@ NUM_OF_PIECE_TYPES = 12
 # Used to pad sequence of moves after the game ended for transformer training.
 PAD_BOARD = np.zeros((NUM_OF_PIECE_TYPES, 8, 8))
 PAD_MOVE = 0
-# len(get_all_moves()) = 1794 => 1794 + 1 (for pad_move).
-NUM_POSSIBLE_MOVES = 1795
+START_MOVE = 1
+# len(get_all_moves()) = 1794 => 1794 + 2 (for pad_move & start_move).
+NUM_POSSIBLE_MOVES = 1796
 
 
 def __flatten(xss):
@@ -49,11 +50,14 @@ def get_all_moves():
 
 
 __moves = get_all_moves()
-## Use 1-based index to leave room for zero pad index.
-__moves_to_idx = {move: idx for idx, move in enumerate(__moves, 1)}
-## Pad is not a real move. It is used to tell sequential models that the game
-## was over before the move sequence ended.
+## Start from index 2 to leave room for pad and start moves.
+__moves_to_idx = {move: idx for idx, move in enumerate(__moves, 2)}
+
+## Pad and start are not a real moves. They are used to tell sequential models
+## that the game was over before the move sequence ended or that no move caused
+## the initial board position.
 __moves_to_idx['<pad>'] = PAD_MOVE
+__moves_to_idx['<sos>'] = START_MOVE
 
 
 def encode(move: str) -> int:
