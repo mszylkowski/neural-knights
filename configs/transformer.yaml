@@ -1,6 +1,6 @@
 train:
   # Smaller batch size to account for sequenced (larger) input.
-  batchsize: 128
+  batchsize: 1
   # Learning rate
   lr: 0.001
   # Exponential decay gamma. Lower values reduce lr faster.

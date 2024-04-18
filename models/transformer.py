@@ -2,7 +2,8 @@ import numpy as np
 import torch
 from torch import nn
 
-from utils.moves import NUM_POSSIBLE_MOVES, NUM_OF_SQUARES, NUM_OF_PIECE_TYPES, PAD_MOVE
+from utils.moves import (NUM_POSSIBLE_MOVES, NUM_OF_SQUARES,
+    NUM_OF_PIECE_TYPES, PAD_MOVE, START_MOVE)
 
 
 class Transformer(nn.Module):
@@ -13,7 +14,8 @@ class Transformer(nn.Module):
                  num_layers_dec: int = 2,
                  dropout: float = 0.2,
                  sequence_length: int = 6,
-                 ignore_index: int = PAD_MOVE):
+                 ignore_index: int = PAD_MOVE,
+                 start_index: int = START_MOVE):
         super().__init__()
 
         self.num_heads = num_heads
@@ -21,7 +23,8 @@ class Transformer(nn.Module):
         self.dim_feedforward = dim_feedforward
         self.sequence_length = sequence_length
         self.output_size = NUM_POSSIBLE_MOVES
-        self.pad_idx=ignore_index
+        self.pad_idx = ignore_index
+        self.start_idx = start_index
 
         # Initialize the transformer layer.
         self.transformer = nn.Transformer(d_model=self.hidden_dim,
@@ -40,7 +43,13 @@ class Transformer(nn.Module):
         if device:
             self.to(device)
 
-    def forward(self, src: torch.Tensor, tgt: torch.Tensor):
+    def _shift_tgt(self, tgt):
+        """Shifts right tgt by 1 and fills the first index with start_idx."""
+        modified_tgt = torch.full_like(tgt, self.start_idx)
+        modified_tgt[:, 1:] = tgt[:, :-1]
+        return modified_tgt
+
+    def forward(self, src: torch.Tensor, tgt: torch.Tensor, shift_tgt: bool = True):
         """Computes transfomer forward and returns outputs.
 
         Parameters:
@@ -52,6 +61,10 @@ class Transformer(nn.Module):
         """
         src = src.type(torch.int)
         tgt = tgt.type(torch.int)
+
+        if shift_tgt:
+            tgt = self._shift_tgt(tgt)
+            pass
 
         # Collaps src to a three dim tensor (N,T,12x8x8).
         src = src.view(src.size(0), src.size(1), -1)
