@@ -28,12 +28,18 @@ def init_worker():
 
 
 def get_many_positions(game_moves: list[tuple[np.ndarray, int]],
-                       cpositions: int) -> tuple[np.array, np.array]:
+                       cpositions: int) -> list[tuple[np.array, np.array]]:
     """Return consecutive pairs of board positions and moves.
 
-    Consecutive positions start at a random move number in the game to sample
-    from openings, middle games and endings. If the cpositions exceeds the
-    available moves in the game, pad the arrays with special values.
+    It performs a rolling operation, where the first postions-moves pair
+    returned in the list is:
+      - (pos1, pos2,..., post-cpositions)
+      - (mov1, mov2,..., mov-cpositions)
+    And the second positions-moves pair is:
+      - (pos2, pos3,..., post-(cpositions+1))
+      - (mov2, mov3,..., mov-(cpositions+1))
+    and so on.  Some pairs will contain special pad values when cpositions
+    exceeds the available moves in the game.
 
     Parameters:
     game_moves: A list of board-move pairs.
@@ -41,21 +47,25 @@ def get_many_positions(game_moves: list[tuple[np.ndarray, int]],
         transformer sequence inputs.
 
     Returns:
-    A pair of position-move numpy arrays. The position array has dimensions
-    cpositions x 12 x 8 x 8, where 12 corresponds to the piece types, and
-    8 x 8 the number of board squares.
+    A list of pairs of position-move numpy arrays. The position array has
+    dimensions cpositions x 12 x 8 x 8, where 12 corresponds to the piece
+    types, and 8 x 8 the number of board squares.
     """
     num_moves = len(game_moves)
-    start_move_index = np.random.randint(0, num_moves)
-    num_positions = min(cpositions, num_moves - start_move_index)
-    result_pos = np.full((cpositions, NUM_OF_PIECE_TYPES, 8, 8), PAD_BOARD,
-                         dtype=np.int32)
-    result_moves = np.full((cpositions,), PAD_MOVE, dtype=np.int32)
-    for i in range(num_positions):
-        curr_pos, curr_move = game_moves[start_move_index + i]
-        result_pos[i] = curr_pos
-        result_moves[i] = curr_move
-    return (result_pos, result_moves)
+    results = []
+
+    for i in range(num_moves):
+        # Generate sequence of pos-moves.
+        result_pos = np.full((cpositions, NUM_OF_PIECE_TYPES, 8, 8), PAD_BOARD,
+                             dtype=np.int32)
+        result_moves = np.full((cpositions,), PAD_MOVE, dtype=np.int32)
+        last_j = min(i + cpositions, num_moves)
+        for j in range(i, last_j):
+            curr_pos, curr_move = game_moves[j]
+            result_pos[j-i] = curr_pos
+            result_moves[j-i] = curr_move
+        results.append((result_pos, result_moves))
+    return results
 
 
 class ZstdDecompressor(IterDataPipe):
@@ -81,7 +91,7 @@ class ZstdDecompressor(IterDataPipe):
                     elif self._cpositions > 1:
                         # Adjust r for Transformer input with multiple
                         # consecutive positions.
-                        yield get_many_positions(r, self._cpositions)
+                        yield from get_many_positions(r, self._cpositions)
                     else:
                         yield from r
 
