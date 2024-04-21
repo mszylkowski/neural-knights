@@ -10,3 +10,5 @@ train:
   # Beta value for SGD with momentum.
   momentum: 0.9
   model: ResNet # e.g.: Linear, SmallCNN, etc.
+  model_blocks: 10
+  model_num_filters: 128

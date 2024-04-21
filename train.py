@@ -88,7 +88,7 @@ def get_model(args) -> nn.Module:
     if args.model == "SmallCNN":
         return SmallCNN(device=DEVICE)
     if args.model == "ResNet":
-        return ResNet(device=DEVICE)
+        return ResNet(device=DEVICE, blocks=args.model_blocks or 6)
     if args.model == "Transformer":
         return Transformer(
             device=DEVICE,
