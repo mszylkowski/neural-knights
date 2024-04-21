@@ -99,6 +99,43 @@ def str_to_bitboards(
     return moves
 
 
+def str_to_bitboards_and_elo(
+    game: str,
+) -> tuple[list[tuple[np.ndarray, int]], int] | None:
+    moves: list[tuple[np.ndarray, int]] = []
+    board = Board()
+    current_elo = 0
+    control = ""
+    for line in game.splitlines():
+        if line.startswith("1."):
+            line = NOTATION_REMOVE.sub("", line)
+            moves_str = REMOVE_BRACKETS.split(line[3:])[:-1]
+            if len(moves_str) < 10:
+                return None
+            for move in moves_str:
+                turn = board.turn
+                rep = board_to_np((board.mirror() if turn == BLACK else board))
+                uci = board.push_san(move).uci()
+                if turn == BLACK:
+                    uci = mirror_move(uci)
+                moves.append((rep, encode(uci)))
+            del board
+        elif line.startswith("[BlackElo") or line.startswith("[WhiteElo"):
+            elo_str = line[11:-2]
+            if elo_str == "?":
+                return None
+            current_elo += int(elo_str) // 2
+        elif line.startswith("[TimeControl"):
+            control = line[14:-2]
+            base = control.split("+")[0]
+            if base != "-" and int(base) < 150:
+                return None
+    if not len(moves):
+        # Abandoned games without any moves.
+        return None
+    return moves, current_elo
+
+
 def str_to_simple_pgn(game: str, elo=1500, elo_range=100) -> str | None:
     content = []
     current_elo = 0

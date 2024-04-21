@@ -12,6 +12,7 @@ def init_weights(m):
         nn.init.constant_(m.weight, 1)
         nn.init.constant_(m.bias, 0)
 
+
 class SimpleSkipLayer(nn.Module):
     """Same-padding layer with a skip connection.
 
@@ -19,11 +20,12 @@ class SimpleSkipLayer(nn.Module):
     number of channels, we can implement a simpler version of the ResNet basic
     block, without having to worry about fitting shortuct dimensions.
     """
+
     def __init__(self, channels, apply_batch_norm=False):
         super().__init__()
         self.outputs = NUM_POSSIBLE_MOVES
         self._apply_bnorm = apply_batch_norm
-        
+
         self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
         self.bn1 = nn.BatchNorm2d(channels)
@@ -47,18 +49,22 @@ class SimpleSkipLayer(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, device: torch.device | None = None, num_filters = 64,
-                 apply_batch_norm=False) -> None:
+    def __init__(
+        self,
+        device: torch.device | None = None,
+        num_filters=64,
+        apply_batch_norm=False,
+        blocks=6,
+    ) -> None:
         super().__init__()
         self.outputs = NUM_POSSIBLE_MOVES
 
         self.first_conv = nn.Conv2d(12, num_filters, kernel_size=3, padding=1)
         self.res = nn.Sequential(
-            SimpleSkipLayer(num_filters, apply_batch_norm=apply_batch_norm),
-            SimpleSkipLayer(num_filters, apply_batch_norm=apply_batch_norm),
-            SimpleSkipLayer(num_filters, apply_batch_norm=apply_batch_norm),
-            SimpleSkipLayer(num_filters, apply_batch_norm=apply_batch_norm),
-            SimpleSkipLayer(num_filters, apply_batch_norm=apply_batch_norm),
+            *[
+                SimpleSkipLayer(num_filters, apply_batch_norm=apply_batch_norm)
+                for _ in range(blocks)
+            ]
         )
         self.linear = nn.Linear(num_filters * NUM_OF_SQUARES, self.outputs)
         self.apply(init_weights)
