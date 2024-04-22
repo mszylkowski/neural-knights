@@ -13,10 +13,12 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import ExponentialLR
 
 from models import Linear, ResNet, SmallCNN, Transformer
+from utils.args import save_config_to_args
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
 from utils.prettyprint import config_to_markdown
 from utils.meters import AverageMeter
 from utils.model import model_summary, accuracy
+from utils.load_model import get_empty_model
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -50,13 +52,6 @@ def get_args():
     return parser.parse_args()
 
 
-def save_config_to_args(config, args):
-    """Save config back into args for convenience."""
-    for key in config:
-        for k, v in config[key].items():
-            setattr(args, k, v)
-
-
 def get_validation_scores(model, criterion, dataloader, max_num_batches=10):
     all_losses = np.zeros(max_num_batches, dtype=np.float32)
     all_accs = np.zeros(max_num_batches, dtype=np.float32)
@@ -81,27 +76,6 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=10):
     return np.mean(all_losses), np.mean(all_accs)
 
 
-def get_model(args) -> nn.Module:
-    """Returns a model instantiation based on config args."""
-    if args.model == "Linear":
-        return Linear(device=DEVICE)
-    if args.model == "SmallCNN":
-        return SmallCNN(device=DEVICE)
-    if args.model == "ResNet":
-        return ResNet(device=DEVICE, blocks=args.model_blocks or 6)
-    if args.model == "Transformer":
-        return Transformer(
-            device=DEVICE,
-            num_heads=args.num_heads,
-            dim_feedforward=args.dim_feedforward,
-            num_layers_enc=args.num_layers_enc,
-            num_layers_dec=args.num_layers_dec,
-            dropout=args.dropout,
-            sequence_length=args.consecutive_positions,
-        )
-    raise Exception("Model {args.model} not found")
-
-
 if __name__ == "__main__":
     # Parse arguments
     args = get_args()
@@ -110,7 +84,7 @@ if __name__ == "__main__":
     save_config_to_args(config, args)
 
     # Create model and helpers
-    model = get_model(args)
+    model = get_empty_model(args, DEVICE)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(
         model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.reg_l2
