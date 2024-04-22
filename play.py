@@ -1,13 +1,17 @@
 import argparse
+import yaml
 
 import torch
+from torch import nn
 from chess import BLACK, WHITE, Board, Move
 from termcolor import colored
 
 import utils.moves as MoveEncoder
-from model import NeuralKnight
+from utils.args import save_config_to_args
 from utils.board import board_to_np
 from utils.model import model_summary
+from utils.load_model import load_model_from_saved_run
+
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -25,11 +29,17 @@ def get_args():
         help="Color to play for the human. Defaults to white.",
     )
     parser.add_argument(
-        "--model",
-        "-m",
+        "--run",
+        "-r",
         type=str,
         default="runs/Mar16_1949.pt",
         help="File path of the model. Should be `runs/*.pt`.",
+    )
+    parser.add_argument(
+        "--config",
+        type=argparse.FileType(),
+        default="./configs/small_cnn.yaml",
+        help="Model config spec. Used to define the model and hyperparameter values.",
     )
     return parser.parse_args()
 
@@ -71,7 +81,7 @@ def get_player_move(board: Board, player_color: bool):
             print(e)
 
 
-def get_model_move(board: Board, model_color: bool, model: NeuralKnight) -> Move:
+def get_model_move(board: Board, model_color: bool, model: nn.Module) -> Move:
     board_correct_view = board.mirror() if model_color == BLACK else board
     model_input = torch.tensor(
         board_to_np(board_correct_view).reshape(1, 12, 8, 8), device=DEVICE
@@ -108,9 +118,14 @@ def get_model_move(board: Board, model_color: bool, model: NeuralKnight) -> Move
 
 if __name__ == "__main__":
     args = get_args()
-    model = NeuralKnight(device=DEVICE)
-    model.load_state_dict(torch.load(args.model, map_location=DEVICE))
-    print("Loaded model Neural Knight:")
+    config = yaml.safe_load(args.config)
+    save_config_to_args(config, args)
+
+    path_to_run = args.run
+    model = load_model_from_saved_run(path_to_run, args, DEVICE)
+    model.eval()
+    model_name = model.__class__.__name__
+    print(f"Loaded model: {model_name}")
     print(model_summary(model, batchsize=1))
 
     board = Board()
