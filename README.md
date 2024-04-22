@@ -31,9 +31,9 @@ Steps:
 
 ## Playing:
 
-Play against the bot using `python -m play_online -m <model>`, and go to `http://localhost:8080`.
+Play against the bot using `python -m play_online -r <run>`, and go to `http://localhost:8080`.
 
-Or, use `python -m play -m <model>` to play in the CLI.
+Or, use `python -m play -r <run>` to play in the CLI.
 
 ## Additional Resources:
 
