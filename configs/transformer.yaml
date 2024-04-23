@@ -2,7 +2,7 @@ train:
   # Smaller batch size to account for sequenced (larger) input.
   batchsize: 128
   # Learning rate
-  lr: 0.001
+  lr: 0.01
   # Exponential decay gamma. Lower values reduce lr faster.
   exponential_decay: 0.999
   # L2 Regularization lambda value.
@@ -12,7 +12,7 @@ train:
   model: Transformer # e.g.: Linear, SmallCNN, etc.
 
   # Transformer related arguments
-  consecutive_positions: 4 # Transformers require >1
+  consecutive_positions: 6 # Transformers require >1
   num_heads: 2
   dim_feedforward: 2048
   num_layers_enc: 2
