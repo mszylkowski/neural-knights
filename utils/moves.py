@@ -55,7 +55,7 @@ def get_all_moves():
 
 __moves = get_all_moves()
 ## Start from index 2 to leave room for pad and start moves.
-__moves_to_idx = {move: idx for idx, move in enumerate(__moves, 2)}
+__moves_to_idx = {move: idx for idx, move in enumerate(__moves)}
 
 def encode(move: str) -> int:
     """Converts a UCI move to an index."""
