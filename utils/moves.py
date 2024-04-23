@@ -46,19 +46,16 @@ def get_all_moves():
             for a, b in all_deltas:
                 if 0 <= i + a < 8 and 0 <= j + b < 8:
                     piece_movements.add(square + board_locations[i + a][j + b])
-    return sorted(piece_movements)
+    ## Pad and start are not a real moves. They are used to tell sequential models
+    ## that the game was over before the move sequence ended or that no move caused
+    ## the initial board position.
+    pad_moves = ['<pad>', 'start']
+    return pad_moves + sorted(piece_movements)
 
 
 __moves = get_all_moves()
 ## Start from index 2 to leave room for pad and start moves.
 __moves_to_idx = {move: idx for idx, move in enumerate(__moves, 2)}
-
-## Pad and start are not a real moves. They are used to tell sequential models
-## that the game was over before the move sequence ended or that no move caused
-## the initial board position.
-__moves_to_idx['<pad>'] = PAD_MOVE
-__moves_to_idx['<sos>'] = START_MOVE
-
 
 def encode(move: str) -> int:
     """Converts a UCI move to an index."""
@@ -69,7 +66,7 @@ def encode(move: str) -> int:
 
 def decode(move_idx: int) -> str:
     """Converts an index to a UCI move."""
-    return __moves[move_idx-2] # Account for extra 2 pad move idx.
+    return __moves[move_idx]
 
 
 def mirror_move(uci_move: str) -> str:
