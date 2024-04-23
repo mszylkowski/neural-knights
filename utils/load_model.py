@@ -4,6 +4,8 @@ import torch
 from torch import nn
 
 from models import Linear, ResNet, SmallCNN, Transformer
+from models.large_cnn import LargeCNN
+
 
 def _try_load_model(model: nn.Module, state_dict: dict[str, torch.Tensor]) -> bool:
     model_name = model.__class__.__name__
@@ -31,7 +33,17 @@ def get_empty_model(args, DEVICE) -> nn.Module:
     if args.model == "SmallCNN":
         return SmallCNN(device=DEVICE)
     if args.model == "ResNet":
-        return ResNet(device=DEVICE, blocks=args.model_blocks or 6)
+        return ResNet(
+            device=DEVICE,
+            blocks=args.model_blocks or 6,
+            num_filters=args.model_num_filters or 64,
+        )
+    if args.model == "LargeCNN":
+        return LargeCNN(
+            device=DEVICE,
+            blocks=args.model_blocks or 10,
+            num_filters=args.model_num_filters or 64,
+        )
     if args.model == "Transformer":
         return Transformer(
             device=DEVICE,
