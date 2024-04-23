@@ -201,13 +201,23 @@ if __name__ == "__main__":
             )
             writer.add_histogram("Training/labels/train", batch_y, epoch, "rice")
             writer.add_scalar(
-                "Training/labels/zeros",
-                batch_y.eq(0).sum().item() / args.batchsize,
+                "Training/labels/sos",
+                batch_y.eq(0).sum().item() / batch_y.size().numel(),
                 epoch,
             )
             writer.add_scalar(
-                "Training/labels/ones",
-                batch_y.eq(1).sum().item() / args.batchsize,
+                "Training/labels/pad",
+                batch_y.eq(1).sum().item() / batch_y.size().numel(),
+                epoch,
+            )
+            writer.add_scalar(
+                "Training/predictions/sos",
+                outputs.eq(0).sum().item() / outputs.size().numel(),
+                epoch,
+            )
+            writer.add_scalar(
+                "Training/predictions/pad",
+                outputs.eq(1).sum().item() / outputs.size().numel(),
                 epoch,
             )
 
