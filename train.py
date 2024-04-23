@@ -14,6 +14,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 from models import Linear, ResNet, SmallCNN, Transformer
 from utils.args import save_config_to_args
+from utils.moves import NUM_POSSIBLE_MOVES
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
 from utils.prettyprint import config_to_markdown
 from utils.meters import AverageMeter
@@ -197,6 +198,17 @@ if __name__ == "__main__":
             writer.add_scalar("Training/LR", scheduler.get_last_lr()[0], epoch)
             writer.add_scalar(
                 "Training/Positions", args.batchsize * batch_number, epoch
+            )
+            writer.add_histogram("Training/labels/train", batch_y, epoch, "rice")
+            writer.add_scalar(
+                "Training/labels/zeros",
+                batch_y.eq(0).sum().item() / args.batchsize,
+                epoch,
+            )
+            writer.add_scalar(
+                "Training/labels/ones",
+                batch_y.eq(1).sum().item() / args.batchsize,
+                epoch,
             )
 
             output.write(
