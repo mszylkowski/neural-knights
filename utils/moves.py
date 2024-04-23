@@ -69,7 +69,7 @@ def encode(move: str) -> int:
 
 def decode(move_idx: int) -> str:
     """Converts an index to a UCI move."""
-    return __moves[move_idx-2]
+    return __moves[move_idx-2] # Account for extra 2 pad move idx.
 
 
 def mirror_move(uci_move: str) -> str:
