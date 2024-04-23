@@ -62,14 +62,14 @@ __moves_to_idx['<sos>'] = START_MOVE
 
 def encode(move: str) -> int:
     """Converts a UCI move to an index."""
-    if move.startswith("O"):
+    if move.startswith("O") or move.startswith("<"):
         return __moves_to_idx[move]
     return __moves_to_idx[move[:4]]
 
 
 def decode(move_idx: int) -> str:
     """Converts an index to a UCI move."""
-    return __moves[move_idx]
+    return __moves[move_idx-2] # Account for extra 2 pad move idx.
 
 
 def mirror_move(uci_move: str) -> str:
