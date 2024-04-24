@@ -89,30 +89,28 @@ def get_model_move(board: Board, model_color: bool, model: nn.Module) -> Move:
     model_move = model.forward(model_input)
     for move_idx in model_move.argsort(descending=True).cpu().numpy()[0]:
         corrected_move = MoveEncoder.decode(int(move_idx.item()))
-        move = (
+        move_uci = (
             MoveEncoder.mirror_move(corrected_move)
             if model_color == BLACK
             else corrected_move
         )
         corrected_move = Move.from_uci(corrected_move)
-        if move.startswith("O"):
+        if move_uci.startswith("O"):
             try:
-                return board.push_san(move)
+                return board.push_san(move_uci)
             except ValueError:
                 continue
         else:
-            move = Move.from_uci(move)
-            # Try both normal move and mirrored move, in case the model was not trained properly.
-            if board.is_legal(move):
-                print("Used model move:", move.uci())
-                board.push(move)
-            elif board.is_legal(corrected_move):
-                print("Used mirrored model move:", move.uci())
-                board.push(corrected_move)
+            move = Move.from_uci(move_uci)
+            # Try both normal move, mirrored move and promotion.
+            moves_to_try = [Move.from_uci(move_uci + "q"), move, corrected_move]
+            for m in moves_to_try:
+                if board.is_legal(m):
+                    board.push(m)
+                    return move
             else:
                 print("Move was illegal", move.uci(), corrected_move.uci())
                 continue
-        return move
     raise Exception("No move found")
 
 

@@ -1,0 +1,268 @@
+html,
+body {
+  background: #1f2122;
+  margin: 0;
+  width: 100%;
+  color: white;
+  font-family: "Work Sans", sans-serif;
+}
+
+#app {
+  display: grid;
+  place-items: center;
+}
+
+#board {
+  width: 60vmin;
+  height: 60vmin;
+}
+
+button {
+  font-family: inherit;
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  background: #e9e9e9;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  border: none;
+}
+
+button:hover {
+  box-shadow: 0 0 0 2px #86a9c3;
+}
+
+button#black {
+  background: #545454;
+  color: white;
+}
+
+#state {
+  padding: 16px;
+  background: #313435;
+  margin-top: 16px;
+  border-radius: 16px;
+}
+
+#fen {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+cg-helper {
+  position: absolute;
+  width: 12.5%;
+  padding-bottom: 12.5%;
+  display: table; /* hack: round to full pixel size in chrome */
+  bottom: 0;
+}
+
+cg-container {
+  display: block;
+}
+
+cg-board {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  line-height: 0;
+  background-size: cover;
+}
+
+cg-board square {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12.5%;
+  height: 12.5%;
+  pointer-events: none;
+}
+
+cg-board square.move-dest {
+  background: radial-gradient(#79e2107c 44%, #fff8 0, #fff8 48%, transparent 0);
+  background-size: 50% 50%;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: background-size 0.1s linear;
+  cursor: grabbing;
+  pointer-events: auto;
+}
+
+cg-board square.move-dest:hover {
+  background-size: 100% 100%;
+}
+
+cg-board square.oc.move-dest {
+  background: radial-gradient(
+    transparent 0%,
+    transparent 80%,
+    rgba(20, 85, 0, 0.3) 80%
+  );
+}
+cg-board square.premove-dest:hover {
+  background: rgba(20, 30, 85, 0.2);
+}
+cg-board square.last-move {
+  will-change: transform;
+  background-color: #79e21066;
+}
+cg-board squareselected {
+  background-color: #79e2107c;
+}
+cg-board square.check {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 0, 0, 1) 0%,
+    rgba(231, 0, 0, 1) 25%,
+    rgba(169, 0, 0, 0) 89%,
+    rgba(158, 0, 0, 0) 100%
+  );
+}
+cg-board square.current-premove {
+  background-color: rgba(20, 30, 85, 0.5);
+}
+
+cg-board piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12.5%;
+  height: 12.5%;
+  background-size: cover;
+  z-index: 2;
+  will-change: transform;
+  cursor: grab;
+  background-size: 100%;
+  background-position: center;
+  transition: background-size 0.1s linear;
+}
+
+cg-board piece.dragging {
+  cursor: grabbing;
+  z-index: 10;
+  background-size: 110%;
+}
+cg-board piece.anim {
+  z-index: 8;
+}
+cg-board piece.fading {
+  z-index: 1;
+  opacity: 0.5;
+}
+.cg-wrap piece.ghost {
+  opacity: 0.3;
+}
+.cg-wrap .cg-shapes,
+.cg-wrap .cg-custom-svgs {
+  overflow: hidden;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.cg-wrap .cg-shapes {
+  opacity: 0.9;
+  z-index: 2;
+}
+.cg-wrap .cg-custom-svgs {
+  z-index: 9; /* over piece.anim = 8, but under piece.dragging = 10 */
+}
+.cg-wrap coords {
+  position: absolute;
+  display: flex;
+  pointer-events: none;
+  opacity: 0.8;
+  user-select: none;
+}
+
+.cg-wrap coords.ranks {
+  left: -2px !important;
+  top: calc(-6.25% + 11px) !important;
+}
+
+.cg-wrap coords.files {
+  bottom: -2px !important;
+  left: -2px !important;
+}
+
+.cg-wrap coords coord {
+  color: black;
+  padding: 0.05em 0.1em;
+  text-align: right;
+}
+
+.cg-wrap coords:nth-child(2n),
+.cg-wrap coords:nth-child(2n) {
+  color: #346081;
+}
+
+/*
+ * Board
+ */
+.cg-wrap {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//board.svg");
+}
+
+.pawn.white {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//wP.svg");
+}
+.bishop.white {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//wB.svg");
+}
+.knight.white {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//wN.svg");
+}
+.rook.white {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//wR.svg");
+}
+.queen.white {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//wQ.svg");
+}
+.king.white {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//wK.svg");
+}
+.pawn.black {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//bP.svg");
+}
+.bishop.black {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//bB.svg");
+}
+.knight.black {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//bN.svg");
+}
+.rook.black {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//bR.svg");
+}
+.queen.black {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//bQ.svg");
+}
+.king.black {
+  background-image: url("https://raw.githubusercontent.com/mszylkowski/ChessWeb/main/src/tatiana//bK.svg");
+}
+
+/*
+ * Markers
+ */
+svg.cg-shapes {
+  marker#arrowhead-g path,
+  marker#arrowhead-b path,
+  marker#arrowhead-r path,
+  marker#arrowhead-y path {
+    d: path("M 0.8 0.5 V 3.5 L 3 2 Z");
+  }
+}
+
+svg.cg-shapes g > line {
+  stroke-linecap: butt;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: -0.42;
+  opacity: 1;
+}
