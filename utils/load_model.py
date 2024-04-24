@@ -29,7 +29,11 @@ def load_model_from_saved_run(path_to_run, args, DEVICE) -> nn.Module:
 def get_empty_model(args, DEVICE) -> nn.Module:
     """Returns a model instantiation based on config args."""
     if args.model == "Linear":
-        return Linear(device=DEVICE)
+        return Linear(
+            device=DEVICE,
+            hidden_size=args.model_hidden_size or 512,
+            hidden_layers=args.model_hidden_layers or 2,
+        )
     if args.model == "SmallCNN":
         return SmallCNN(device=DEVICE)
     if args.model == "ResNet":
