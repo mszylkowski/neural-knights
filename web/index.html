@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neural Knight</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/chessground@9.0.5/assets/chessground.base.min.css"
+      rel="stylesheet"
+    />
+    <script type="module" defer>
+      import { Chess } from "https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.8/+esm";
+      import { Chessground } from "https://cdn.jsdelivr.net/npm/chessground@9.0.5/+esm";
+      const pgn = new URLSearchParams(window.location.search).get("pgn");
+      const boardEl = document.getElementById("board");
+      const fenEl = document.getElementById("fen");
+      const pgnEl = document.getElementById("pgn");
+      const playWhiteButton = document.getElementById("white");
+      const playBlackButton = document.getElementById("black");
+      const chess = new Chess();
+      if (pgn) chess.loadPgn(pgn);
+      function getModelMove() {
+        fetch(
+          "/getmove?fen=" +
+            encodeURIComponent(chess.fen()) +
+            "&pgn=" +
+            encodeURIComponent(chess.pgn())
+        )
+          .then((res) => res.text())
+          .then((res) => {
+            try {
+              let move = chess.move(res);
+              if (move.promotion) {
+                chess.undo();
+                chess.move(res + "q");
+              }
+              board.set({ fen: chess.fen() });
+              fenEl.textContent = chess.fen();
+              pgnEl.textContent = chess.pgn();
+            } catch {}
+          });
+      }
+      const board = new Chessground(boardEl, {
+        fen: chess.fen(),
+        turnColor: "white",
+        orientation: "white",
+        premove: { enabled: false },
+        movable: { free: false },
+        events: {
+          move: (from, to) => {
+            const oldFen = chess.fen();
+            try {
+              let move = chess.move({ from, to, promotion: "q" });
+              if (move) {
+                board.set({ fen: chess.fen() });
+                getModelMove();
+              }
+            } catch {}
+            fenEl.textContent = chess.fen();
+            pgnEl.textContent = chess.pgn();
+          },
+          select: (key) => {
+            const validMoves = chess.moves({
+              verbose: true,
+              square: key,
+            });
+            board.set({
+              movable: {
+                dests: new Map([[key, validMoves.map((move) => move.to)]]),
+              },
+            });
+          },
+        },
+      });
+      function windowResize() {
+        const origSize = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+        const sizeMultOf8 = `${Math.round(origSize / 8) * 8}px`;
+        boardEl.style.setProperty("width", sizeMultOf8);
+        boardEl.style.setProperty("height", sizeMultOf8);
+      }
+      window.addEventListener("resize", windowResize);
+      windowResize();
+      fenEl.textContent = chess.fen();
+
+      playWhiteButton.addEventListener("click", () => {
+        chess.reset();
+        board.set({ fen: chess.fen(), orientation: "white", lastMove: null });
+      });
+      playBlackButton.addEventListener("click", () => {
+        chess.reset();
+        board.set({ fen: chess.fen(), orientation: "black", lastMove: null });
+        getModelMove();
+      });
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <h1>Neural Knights</h1>
+      <div>
+        <button id="white">Play as white</button>
+        <button id="black">Play as black</button>
+      </div>
+      <div id="board">board</div>
+      <div id="state">
+        <div id="fen">fen</div>
+        <div id="pgn">pgn</div>
+      </div>
+    </div>
+  </body>
+</html>

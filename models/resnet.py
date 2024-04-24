@@ -68,6 +68,7 @@ class ResNet(nn.Module):
         )
         self.linear = nn.Linear(num_filters * NUM_OF_SQUARES, self.outputs)
         self.apply(init_weights)
+        self.to(device)
 
     def forward(self, x):
         x = x.type(torch.float32)
