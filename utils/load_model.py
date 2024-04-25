@@ -58,4 +58,4 @@ def get_empty_model(args, DEVICE) -> nn.Module:
             dropout=args.dropout,
             sequence_length=args.consecutive_positions,
         )
-    raise Exception("Model {args.model} not found")
+    raise Exception(f"Model {args.model} not found")

@@ -76,7 +76,9 @@ def get_player_move(board: Board, player_color: bool):
                 continue
             return
         try:
-            board.push_san(player_move)
+            move = board.push_san(player_move)
+            board.pop()
+            return move
         except ValueError as e:
             print(e)
 
@@ -106,7 +108,6 @@ def get_model_move(board: Board, model_color: bool, model: nn.Module) -> Move:
             moves_to_try = [Move.from_uci(move_uci + "q"), move, corrected_move]
             for m in moves_to_try:
                 if board.is_legal(m):
-                    board.push(m)
                     return move
             else:
                 print("Move was illegal", move.uci(), corrected_move.uci())
@@ -129,9 +130,10 @@ if __name__ == "__main__":
     board = Board()
     player_color = WHITE if args.color == "w" else BLACK
     while True:
-        get_player_move(board, player_color)
-        get_model_move(board, not player_color, model)
-
+        move = get_player_move(board, player_color)
+        board.push(move)
+        move = get_model_move(board, not player_color, model)
+        board.push(move)
         if board.is_game_over():
             print(board.result())
             break
