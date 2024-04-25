@@ -1,33 +1,57 @@
 import argparse
+from queue import Queue
 import chess
-from chess import engine
-from chess import variant
 import chess.polyglot
-import model
+
+from play import DEVICE, get_model_move
+from utils.load_model import load_model_from_saved_run
+from . import model
 import json
-import lichess
+from . import api as lichess
 import logging
 import multiprocessing
 from multiprocessing import Process
 import signal
 import backoff
-from config import load_config
 from requests.exceptions import HTTPError, ReadTimeout
-import os
-import time
+import yaml
 
 logger = logging.getLogger(__name__)
 
-from http.client import RemoteDisconnected
+
+class ResnetModel:
+    model = "ResNet"
+    model_blocks = 6
+    model_num_filters = 256
 
 
 terminated = False
+force_quit = False
+restart = True
+
+with open("lichess/TOKEN.txt", "rt") as token_file:
+    TOKEN = token_file.readline().strip("\n")
+with open("lichess/config.yaml") as config_file:
+    CONFIG = yaml.safe_load(config_file)
+MODEL = load_model_from_saved_run(
+    "runs/resnet_6b_256f.pt",
+    ResnetModel(),
+    DEVICE=DEVICE,
+)
 
 
-def signal_handler(signal, frame):
+def signal_handler(signal: int, frame):
     global terminated
-    logger.debug("Recieved SIGINT. Terminating client.")
-    terminated = True
+    global force_quit
+    in_starting_thread = __name__ == "__main__"
+    if not terminated:
+        if in_starting_thread:
+            logger.debug("Recieved SIGINT. Terminating client.")
+        terminated = True
+    else:
+        if in_starting_thread:
+            logger.debug("Received second SIGINT. Quitting now.")
+        force_quit = True
 
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -45,7 +69,9 @@ def upgrade_account(li):
     return True
 
 
-def watch_control_stream(control_queue, li):
+def watch_control_stream(control_queue: Queue, li: lichess.Lichess) -> None:
+    """Put the events in a queue."""
+    error = None
     while not terminated:
         try:
             response = li.get_event_stream()
@@ -54,12 +80,12 @@ def watch_control_stream(control_queue, li):
                 if line:
                     event = json.loads(line.decode("utf-8"))
                     control_queue.put_nowait(event)
-                    logger.info(event)
-        except:
-            logger.info(
-                "Network error:Cannot get data from lichess! Check your network connection or try again in a few minutes."
-            )
-            pass
+                else:
+                    control_queue.put_nowait({"type": "ping"})
+        except Exception:
+            break
+
+    control_queue.put_nowait({"type": "terminated", "error": error})
 
 
 def start(li, user_profile, config):
@@ -124,149 +150,59 @@ def play_game(li, game_id, user_profile, config):
     elif timep < 0.3:
         timep = 0.3
     board = setup_board(game)
-    cfg = config["engine"]
-
-    if type(board).uci_variant == "chess":
-        engine_path = os.path.join(cfg["dir"], cfg["name"])
-    else:
-        engine_path = os.path.join(cfg["dir"], cfg["variantname"])
-    engineeng = engine.SimpleEngine.popen_uci(engine_path)
-    engineeng.configure({"Threads": 5})
-    engineeng.configure({"Hash": 120})
-    try:
-        engineeng.configure({"EvalFile": "nn-4f56ecfca5b7.nnue"})
-    except:
-        pass
-    engineeng.configure({"Use NNUE": True})
 
     logger.info("Game Details  :{}".format(game))
 
-    delay_seconds = config.get("rate_limiting_delay", 0) / 1000
-
     if is_engine_move(game, board.move_stack) and not is_game_over(game):
-        with chess.polyglot.open_reader("book.bin") as reader:
-            movesob = []
-            weight = []
-            for entry in reader.find_all(board):
-                movesob.append(entry.move)
-                weight.append(entry.weight)
-        if len(weight) == 0 or max(weight) < 9:
-            move = engineeng.play(board, engine.Limit(time=timep))
-            board.push(move.move)
-            li.make_move(game.id, move.move)
-            time.sleep(delay_seconds)
-        else:
-            move = movesob[weight.index(max(weight))]
-            board.push(move)
-            li.make_move(game.id, move)
+        move = get_model_move(board, board.turn, MODEL)
+        board.push(move)
+        li.make_move(game.id, move.uci())
 
-    with chess.polyglot.open_reader("book.bin") as reader:
-        while not terminated:
-            try:
-                binary_chunk = next(lines)
-            except StopIteration:
-                break
-            upd = json.loads(binary_chunk.decode("utf-8")) if binary_chunk else None
-            u_type = upd["type"] if upd else "ping"
-            if not board.is_game_over():
-                if u_type == "gameState":
-                    game.state = upd
-                    moves = upd["moves"].split()
-                    board = update_board(board, moves[-1])
-                    if not is_game_over(game) and is_engine_move(game, moves):
-                        if chess.popcount(board.occupied) <= 7:
-                            move = egtb_move(li, board, game)
-                            if move != None:
-                                board.push(move)
-                                li.make_move(game.id, move)
-                            else:
-                                moves = []
-                            weight = []
-                            for entry in reader.find_all(board):
-                                moves.append(entry.move)
-                                weight.append(entry.weight)
-                            if len(weight) == 0 or max(weight) < 9:
-                                timelim = (
-                                    game.state["wtime"] / 1000
-                                    if game.is_white
-                                    else game.state["btime"] / 1000
-                                )
-                                divtime = 85 - int(len(board.move_stack) / 2)
-                                if divtime < 1:
-                                    timep = 1
-                                else:
-                                    timep = round(timelim / divtime, 1)
-                                    if timep > 10:
-                                        timep = 10
-                                    elif timep < 0.3:
-                                        timep = 0.3
-                                move = engineeng.play(board, engine.Limit(time=timep))
-                                board.push(move.move)
-                                li.make_move(game.id, move.move)
-                                time.sleep(delay_seconds)
-                            else:
-                                move = moves[weight.index(max(weight))]
-                                board.push(move)
-                                li.make_move(game.id, move)
-                        else:
-                            moves = []
-                            weight = []
-                            for entry in reader.find_all(board):
-                                moves.append(entry.move)
-                                weight.append(entry.weight)
-                            if len(weight) == 0 or max(weight) < 9:
-                                timelim = (
-                                    game.state["wtime"] / 1000
-                                    if game.is_white
-                                    else game.state["btime"] / 1000
-                                )
-                                divtime = 85 - int(len(board.move_stack) / 2)
-                                if divtime < 1:
-                                    timep = 1
-                                else:
-                                    timep = round(timelim / divtime, 1)
-                                    if timep > 10:
-                                        timep = 10
-                                    elif timep < 0.3:
-                                        timep = 0.3
-                                move = engineeng.play(board, engine.Limit(time=timep))
-                                board.push(move.move)
-                                li.make_move(game.id, move.move)
-                                time.sleep(delay_seconds)
-                            else:
-                                move = moves[weight.index(max(weight))]
-                                board.push(move)
-                                li.make_move(game.id, move)
+    while not terminated:
+        try:
+            binary_chunk = next(lines)
+        except StopIteration:
+            break
+        upd = json.loads(binary_chunk.decode("utf-8")) if binary_chunk else None
+        u_type = upd["type"] if upd else "ping"
+        if not board.is_game_over():
+            if u_type == "gameState":
+                game.state = upd
+                moves = upd["moves"].split()
+                board = update_board(board, moves[-1])
+                if not is_game_over(game) and is_engine_move(game, moves):
+                    move = get_model_move(board, board.turn, MODEL)
+                    board.push(move)
+                    li.make_move(game.id, move.uci())
 
-                    if board.turn == chess.WHITE:
-                        game.ping(
-                            config.get("abort_time", 20),
-                            (upd["wtime"] + upd["winc"]) / 1000 + 60,
-                        )
-                    else:
-                        game.ping(
-                            config.get("abort_time", 20),
-                            (upd["btime"] + upd["binc"]) / 1000 + 60,
-                        )
+                if board.turn == chess.WHITE:
+                    game.ping(
+                        config.get("abort_time", 20),
+                        (upd["wtime"] + upd["winc"]) / 1000 + 60,
+                    )
+                else:
+                    game.ping(
+                        config.get("abort_time", 20),
+                        (upd["btime"] + upd["binc"]) / 1000 + 60,
+                    )
 
-                elif u_type == "ping":
-                    if game.should_abort_now():
-                        logger.info(
-                            "    Aborting {} by lack of activity".format(game.url())
-                        )
+            elif u_type == "ping":
+                if game.should_abort_now():
+                    logger.info(
+                        "    Aborting {} by lack of activity".format(game.url())
+                    )
+                    li.abort(game.id)
+                    break
+                elif game.should_terminate_now():
+                    logger.info(
+                        "    Terminating {} by lack of activity".format(game.url())
+                    )
+                    if game.is_abortable():
                         li.abort(game.id)
-                        break
-                    elif game.should_terminate_now():
-                        logger.info(
-                            "    Terminating {} by lack of activity".format(game.url())
-                        )
-                        if game.is_abortable():
-                            li.abort(game.id)
-                        break
-            else:
-                break
+                    break
+        else:
+            break
     logger.info("game over")
-    engineeng.quit()
 
 
 def is_white_to_move(game, moves):
@@ -274,17 +210,13 @@ def is_white_to_move(game, moves):
 
 
 def setup_board(game):
-    if game.variant_name.lower() == "chess960":
-        board = chess.Board(game.initial_fen, chess960=True)
-    elif game.variant_name == "From Position":
-        board = chess.Board(game.initial_fen)
+    if game.initial_fen == "startpos":
+        board = chess.Board()
     else:
-        VariantBoard = variant.find_variant(game.variant_name)
-        board = VariantBoard()
+        board = chess.Board(game.initial_fen)
     moves = game.state["moves"].split()
     for move in moves:
         board = update_board(board, move)
-
     return board
 
 
@@ -305,39 +237,6 @@ def update_board(board, move):
     return board
 
 
-def egtb_move(li, board, game):
-    try:
-        if board.uci_variant not in ["chess", "antichess", "atomic"]:
-            return None
-        name_to_wld = {
-            "loss": -2,
-            "maybe-loss": -1,
-            "blessed-loss": -1,
-            "draw": 0,
-            "cursed-win": 1,
-            "maybe-win": 1,
-            "win": 2,
-        }
-        max_pieces = 7 if board.uci_variant == "chess" else 6
-        variant = "standard" if board.uci_variant == "chess" else board.uci_variant
-        if chess.popcount <= max_pieces:
-            data = li.api_get(
-                f"http://tablebase.lichess.ovh/{variant}?fen={board.fen()}"
-            )
-            move = data["moves"][0]["uci"]
-            wdl = name_to_wld[data["moves"][0]["category"]] * -1
-            dtz = data["moves"][0]["dtz"] * -1
-            dtm = data["moves"][0]["dtm"]
-            if dtm:
-                dtm *= -1
-            if wdl != None:
-                return move
-            else:
-                return None
-    except:
-        return None
-
-
 def intro():
     return r"""
     .   _/|
@@ -351,20 +250,15 @@ def intro():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Play on Lichess with a bot")
     parser.add_argument(
-        "-u",
-        action="store_true",
-        help="Add this flag to upgrade your account to a bot account.",
-    )
-    parser.add_argument(
-        "-v",
-        action="store_true",
-        help="Verbose output. Changes log level from INFO to DEBUG.",
-    )
-    parser.add_argument(
         "--config", help="Specify a configuration file (defaults to ./config.yml)"
     )
     parser.add_argument(
         "-l", "--logfile", help="Log file to append logs to.", default=None
+    )
+    parser.add_argument(
+        "-v",
+        help="Set logging level to verbose",
+        action="store_true",
     )
     args = parser.parse_args()
 
@@ -374,8 +268,7 @@ if __name__ == "__main__":
         format="%(asctime)-15s: %(message)s",
     )
     logger.info(intro())
-    CONFIG = load_config(args.config or "./config.yml")
-    li = lichess.Lichess(CONFIG["token"], CONFIG["url"], "1.2.0")
+    li = lichess.Lichess(TOKEN, CONFIG["url"], "1.2.0")
 
     user_profile = li.get_profile()
     username = user_profile["username"]
