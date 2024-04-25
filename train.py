@@ -19,6 +19,7 @@ from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
 from utils.prettyprint import config_to_markdown
 from utils.meters import AverageMeter
 from utils.model import model_summary, accuracy
+from utils.moves import PAD_MOVE
 from utils.load_model import get_empty_model
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -66,8 +67,12 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=10):
             if model.__class__.__name__ == "Transformer":
                 outputs = model.forward(batch_x, batch_y)
                 # Collapse the batchsize and consecutive_positions.
-                outputs = outputs.view(-1, outputs.shape[-1])
                 batch_y = batch_y.view(-1)
+                outputs = outputs.view(-1, outputs.shape[-1])
+                # Mask out pad moves
+                pad_mask = batch_y != PAD_MOVE
+                batch_y = batch_y[pad_mask]
+                outputs = outputs[pad_mask]
             else:
                 outputs = model.forward(batch_x)
             loss = criterion(outputs, batch_y)
@@ -160,8 +165,12 @@ if __name__ == "__main__":
         if args.model == "Transformer":
             outputs = model.forward(batch_x, batch_y)
             # Collapse the batchsize and consecutive_positions.
-            outputs = outputs.view(args.batchsize * consecutive_positions, -1)
             batch_y = batch_y.view(-1)
+            outputs = outputs.view(args.batchsize * consecutive_positions, -1)
+            # Mask out pad moves
+            pad_mask = batch_y != PAD_MOVE
+            batch_y = batch_y[pad_mask]
+            outputs = outputs[pad_mask]
         else:
             outputs = model.forward(batch_x)
         loss = criterion(outputs, batch_y)
