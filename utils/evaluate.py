@@ -1,3 +1,4 @@
+import argparse
 from multiprocessing.pool import Pool as PoolType
 import signal
 from typing import ByteString
@@ -14,16 +15,32 @@ from torchdata.datapipes.utils import StreamWrapper
 from pyzstd import EndlessZstdDecompressor
 import re
 
-from models.resnet import ResNet
 from train import DEVICE
+from utils.load_model import load_model_from_saved_run
 from utils.model import accuracy
-from utils.pgn import str_to_bitboards, str_to_bitboards_and_elo
-from utils.progressbar import ProgressBar
+from utils.pgn import str_to_bitboards_and_elo
 from utils.moves import NUM_OF_PIECE_TYPES, PAD_BOARD, PAD_MOVE
 
+GAMES = 10_000
+MAX_POSITIONS_PER_BUCKET = 10_000
 READ_SIZE = 100_000
 SCORE_SPLITTER = re.compile(r"(?:(?:1|0|1\/2)-(?:1|0|1\/2)|\*)\n\n")
-MAX_POOLS = None  # Set to None to use all CPU cores, or to a positive integer to limit the number of pools.
+MAX_POOLS = 2  # Set to None to use all CPU cores, or to a positive integer to limit the number of pools.
+
+
+def get_args():
+    parser = argparse.ArgumentParser(
+        prog="Evaluate models",
+        description="Run move and ELO evaluation for the model .pt",
+    )
+    parser.add_argument(
+        "--run",
+        "-r",
+        type=str,
+        required=True,
+        help="Model to evaluate. Has to be .pt",
+    )
+    return parser.parse_args()
 
 
 def init_worker():
@@ -131,8 +148,8 @@ def get_datapipeline_evaluation_pgn():
 
 if __name__ == "__main__":
     dataloader = get_datapipeline_evaluation_pgn()
-    model = ResNet(device=DEVICE, blocks=10)
-    model.load_state_dict(torch.load("runs/resnet_10b_64f.pt"))
+    args = get_args()
+    model = load_model_from_saved_run(args.run)
     model.to(DEVICE)
     # List of moves by elo
     elo_buckets = [[] for _ in range(30)]
@@ -140,11 +157,12 @@ if __name__ == "__main__":
     index_buckets = [[] for _ in range(100)]
     print("Loading positions")
     for i, (moves, elo) in enumerate(dataloader):
-        if i >= 10000:
+        if i >= GAMES:
             break
         elo_bucket = elo // 100
         for j, (board, move) in enumerate(moves):
-            elo_buckets[elo_bucket].append((board, move))
+            if len(elo_buckets[elo_bucket]) > MAX_POSITIONS_PER_BUCKET:
+                elo_buckets[elo_bucket].append((board, move))
             if j < 100:
                 index_buckets[j].append((board, move))
     print("ELO, Accuracy, Moves found")

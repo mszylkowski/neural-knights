@@ -12,9 +12,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 import torch.optim as optim
 from torch.optim.lr_scheduler import ExponentialLR
 
-from models import Linear, ResNet, SmallCNN, Transformer
 from utils.args import save_config_to_args
-from utils.moves import NUM_POSSIBLE_MOVES
 from utils.pgnpipeline import get_datapipeline_pgn, get_validation_pgns
 from utils.prettyprint import config_to_markdown
 from utils.meters import AverageMeter
@@ -57,7 +55,7 @@ def get_validation_scores(model, criterion, dataloader, max_num_batches=10):
     all_losses = np.zeros(max_num_batches, dtype=np.float32)
     all_accs = np.zeros(max_num_batches, dtype=np.float32)
     for batch_number in range(max_num_batches):
-        batch = next(iter(dataloader))
+        batch = next(dataloader)
         batch_x, batch_y = zip(*batch)
         batch_x = torch.tensor(np.array(batch_x), device=DEVICE)
         batch_y = torch.tensor(batch_y, device=DEVICE, dtype=torch.long)
@@ -86,6 +84,7 @@ if __name__ == "__main__":
 
     # Create model and helpers
     model = get_empty_model(args, DEVICE)
+    # model.load_state_dict(torch.load("runs/resnet_6b_256f.pt"))
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(
         model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.reg_l2
@@ -98,11 +97,17 @@ if __name__ == "__main__":
         raise ValueError("Only Transformer models support consecutive_positions")
     elif args.model == "Transformer" and consecutive_positions < 2:
         raise ValueError("Transformer models require consecutive_positions > 1")
-    dataloader = get_datapipeline_pgn(
-        batch_size=args.batchsize, consecutive_positions=consecutive_positions
+    train_decompressor = get_datapipeline_pgn(
+        consecutive_positions=consecutive_positions
     )
-    val_dataloader = get_validation_pgns(
-        batch_size=args.batchsize, consecutive_positions=consecutive_positions
+    dataloader = train_decompressor.shuffle(buffer_size=args.batchsize * 10).batch(
+        batch_size=args.batchsize
+    )
+
+    val_dataloader = iter(
+        get_validation_pgns(consecutive_positions=consecutive_positions)
+        .shuffle(buffer_size=args.batchsize * 10)
+        .batch(batch_size=args.batchsize)
     )
     summary_str = model_summary(
         model, batchsize=args.batchsize, consecutive_positions=consecutive_positions
@@ -197,8 +202,16 @@ if __name__ == "__main__":
             writer.add_scalar("Accuracy/test", val_acc, epoch)
             writer.add_scalar("Training/LR", scheduler.get_last_lr()[0], epoch)
             writer.add_scalar(
-                "Training/Positions", args.batchsize * batch_number, epoch
+                "Training/Positions",
+                min(args.batchsize * batch_number, train_decompressor.positions()),
+                epoch,
             )
+            writer.add_scalar(
+                "Training/Games",
+                train_decompressor.games(),
+                epoch,
+            )
+
             writer.add_histogram("Training/labels/train", batch_y, epoch, "rice")
             writer.add_scalar(
                 "Training/labels/sos",

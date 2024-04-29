@@ -35,12 +35,6 @@ def get_args():
         default="runs/Mar16_1949.pt",
         help="File path of the model. Should be `runs/*.pt`.",
     )
-    parser.add_argument(
-        "--config",
-        type=argparse.FileType(),
-        default="./configs/small_cnn.yaml",
-        help="Model config spec. Used to define the model and hyperparameter values.",
-    )
     return parser.parse_args()
 
 
@@ -70,11 +64,12 @@ def get_player_move(board: Board, player_color: bool):
         if len(player_move) > 2:
             player_move = player_move.upper() if player_color == WHITE else player_move
             try:
-                board.push_san(player_move)
+                move = board.push_san(player_move)
+                board.pop()
+                return move
             except ValueError as e:
                 print(e)
                 continue
-            return
         try:
             move = board.push_san(player_move)
             board.pop()
@@ -83,26 +78,36 @@ def get_player_move(board: Board, player_color: bool):
             print(e)
 
 
-def get_model_move(board: Board, model_color: bool, model: nn.Module) -> Move:
+def get_model_move(
+    board: Board, model_color: bool, model: nn.Module, greedy=True
+) -> Move:
     board_correct_view = board.mirror() if model_color == BLACK else board
     model_input = torch.tensor(
         board_to_np(board_correct_view).reshape(1, 12, 8, 8), device=DEVICE
     )
-    model_move = model.forward(model_input)
-    for move_idx in model_move.argsort(descending=True).cpu().numpy()[0]:
+    model_move: torch.Tensor = model.forward(model_input)
+    generator = (
+        model_move.argsort(descending=True).cpu().numpy()[0]
+        if greedy
+        else torch.pow(model_move, 10).multinomial(model_move.shape.numel())[0]
+    )
+    for move_idx in generator:
         corrected_move = MoveEncoder.decode(int(move_idx.item()))
+        if corrected_move.startswith("<"):
+            continue
         move_uci = (
             MoveEncoder.mirror_move(corrected_move)
             if model_color == BLACK
             else corrected_move
         )
-        corrected_move = Move.from_uci(corrected_move)
         if move_uci.startswith("O"):
             try:
-                return board.push_san(move_uci)
+                board.push_san(move_uci)
+                return board.pop()
             except ValueError:
                 continue
         else:
+            corrected_move = Move.from_uci(corrected_move)
             move = Move.from_uci(move_uci)
             # Try both normal move, mirrored move and promotion.
             moves_to_try = [Move.from_uci(move_uci + "q"), move, corrected_move]
@@ -110,7 +115,6 @@ def get_model_move(board: Board, model_color: bool, model: nn.Module) -> Move:
                 if board.is_legal(m):
                     return move
             else:
-                print("Move was illegal", move.uci(), corrected_move.uci())
                 continue
     raise Exception("No move found")
 
@@ -121,7 +125,7 @@ if __name__ == "__main__":
     save_config_to_args(config, args)
 
     path_to_run = args.run
-    model = load_model_from_saved_run(path_to_run, args, DEVICE)
+    model = load_model_from_saved_run(path_to_run, device=DEVICE)
     model.eval()
     model_name = model.__class__.__name__
     print(f"Loaded model: {model_name}")
