@@ -1,13 +1,11 @@
 import argparse
-import yaml
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs
-from chess import BLACK, STARTING_FEN, Board, Move
+from chess import Board
 import torch
 
 from play import get_model_move
-from utils.args import save_config_to_args
 from utils.load_model import load_model_from_saved_run
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -22,34 +20,18 @@ def get_args():
         prog="Play", description="Plays a game of Chess against Neural Knight"
     )
     parser.add_argument(
-        "--color",
-        "-c",
-        type=str,
-        default="w",
-        choices=["w", "b"],
-        help="Color to play for the human. Defaults to white.",
-    )
-    parser.add_argument(
         "--run",
         "-r",
         type=str,
         default="runs/resnet_10b_64f.pt",
         help="File path of the model. Should be `runs/*.pt`.",
     )
-    parser.add_argument(
-        "--config",
-        type=argparse.FileType(),
-        default="./configs/resnet.yaml",
-        help="Model config spec. Used to define the model and hyperparameter values.",
-    )
     return parser.parse_args()
 
 
 args = get_args()
-config = yaml.safe_load(args.config)
-save_config_to_args(config, args)
 path_to_run = args.run
-model = load_model_from_saved_run(path_to_run, args, DEVICE)
+model = load_model_from_saved_run(path_to_run, device=DEVICE)
 model.eval()
 
 
@@ -62,12 +44,15 @@ class MyServer(BaseHTTPRequestHandler):
             self.wfile.write(open("web/style.css", "rb").read())
             return
 
-        pgn = queryparams["pgn"][0] if "pgn" in queryparams else None
         fen = queryparams["fen"][0] if "fen" in queryparams else None
         board = Board(fen=fen)
         move = ""
         if fen and not board.is_game_over():
-            move = get_model_move(board, board.turn, model).uci()
+            move = get_model_move(
+                board,
+                board.turn,
+                model,
+            ).uci()
         elif board.is_game_over():
             move = "game_over"
 

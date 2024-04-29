@@ -49,13 +49,14 @@ def get_all_moves():
     ## Pad and start are not a real moves. They are used to tell sequential models
     ## that the game was over before the move sequence ended or that no move caused
     ## the initial board position.
-    pad_moves = ['<pad>', 'start']
+    pad_moves = ["<pad>", "<start>"]
     return pad_moves + sorted(piece_movements)
 
 
 __moves = get_all_moves()
 ## Start from index 2 to leave room for pad and start moves.
 __moves_to_idx = {move: idx for idx, move in enumerate(__moves)}
+
 
 def encode(move: str) -> int:
     """Converts a UCI move to an index."""
@@ -78,7 +79,7 @@ def mirror_move(uci_move: str) -> str:
 
 if __name__ == "__main__":
     print(len(__moves))
-    print('### Moves:')
+    print("### Moves:")
     print(sorted(__moves))
-    print('### Move indices:')
+    print("### Move indices:")
     print(__moves_to_idx)

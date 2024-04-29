@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import re
 from chess import BLACK, Board
 import numpy as np
+from itertools import zip_longest
 
 from utils.board import board_to_np
 from utils.moves import encode, mirror_move
@@ -21,28 +22,36 @@ class Game:
 
 REMOVE_BRACKETS = re.compile(r"\s(?:\{[^}]+\})?\s?(?:\d+\.+\s)?")
 NOTATION_REMOVE = re.compile(r"[?!]")
+CLOCK_VALUES = re.compile(r"\d+:\d+:\d+")
 
 
-def str_to_game(game: str, elo=1500, elo_range=100) -> Game | None:
+def str_to_game(game: str, elo=1500, elo_range=100, low_time=20) -> Game | None:
     moves: list[tuple[str, str]] = []
-    board = Board()
     current_elo = 0
     control = ""
     for line in game.splitlines():
         if line.startswith("1."):
             if not (elo + elo_range) > current_elo > (elo - elo_range):
                 return None
+            board = Board()
             line = NOTATION_REMOVE.sub("", line)
             moves_str = REMOVE_BRACKETS.split(line[3:])[:-1]
+            clock_times = CLOCK_VALUES.findall(line)
             if len(moves_str) < 10:
                 return None
-            for move in moves_str:
+            for move, remaining in zip_longest(moves_str, clock_times):
+                if move is None:
+                    break
                 turn = board.turn
                 rep = (board.mirror() if turn == BLACK else board).board_fen()
                 uci = board.push_san(move).uci()
                 if turn == BLACK:
                     uci = mirror_move(uci)
-                moves.append((rep, uci))
+                use_move = remaining is None or not (
+                    remaining.startswith("0:00") and int(remaining[-2:]) < low_time
+                )
+                if use_move:
+                    moves.append((rep, uci))
             del board
         elif line.startswith("[BlackElo") or line.startswith("[WhiteElo"):
             elo_str = line[11:-2]
@@ -61,27 +70,34 @@ def str_to_game(game: str, elo=1500, elo_range=100) -> Game | None:
 
 
 def str_to_bitboards(
-    game: str, elo=1500, elo_range=100
+    game: str, elo=1500, elo_range=100, low_time=20
 ) -> list[tuple[np.ndarray, int]] | None:
     moves: list[tuple[np.ndarray, int]] = []
-    board = Board()
     current_elo = 0
     control = ""
     for line in game.splitlines():
         if line.startswith("1."):
             if not (elo + elo_range) > current_elo > (elo - elo_range):
                 return None
+            board = Board()
             line = NOTATION_REMOVE.sub("", line)
             moves_str = REMOVE_BRACKETS.split(line[3:])[:-1]
+            clock_times = CLOCK_VALUES.findall(line)
             if len(moves_str) < 10:
                 return None
-            for move in moves_str:
+            for move, remaining in zip_longest(moves_str, clock_times):
+                if not move:
+                    break
                 turn = board.turn
                 rep = board_to_np((board.mirror() if turn == BLACK else board))
                 uci = board.push_san(move).uci()
                 if turn == BLACK:
                     uci = mirror_move(uci)
-                moves.append((rep, encode(uci)))
+                use_move = remaining is None or not (
+                    remaining.startswith("0:00") and int(remaining[-2:]) < low_time
+                )
+                if use_move:
+                    moves.append((rep, encode(uci)))
             del board
         elif line.startswith("[BlackElo") or line.startswith("[WhiteElo"):
             elo_str = line[11:-2]
