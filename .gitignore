@@ -3,3 +3,5 @@ data/*.txt
 __pycache__/
 runs/*
 !**/README.md
+lichess/TOKEN.txt
+.vscode/

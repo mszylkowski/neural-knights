@@ -5,7 +5,7 @@ import chess.polyglot
 
 from play import DEVICE, get_model_move
 from utils.load_model import load_model_from_saved_run
-from . import model
+from . import model as li_model
 import json
 from . import api as lichess
 import logging
@@ -19,25 +19,38 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
-class ResnetModel:
-    model = "ResNet"
-    model_blocks = 6
-    model_num_filters = 256
-
-
 terminated = False
 force_quit = False
-restart = True
 
-with open("lichess/TOKEN.txt", "rt") as token_file:
-    TOKEN = token_file.readline().strip("\n")
-with open("lichess/config.yaml") as config_file:
-    CONFIG = yaml.safe_load(config_file)
-MODEL = load_model_from_saved_run(
-    "runs/resnet_6b_256f.pt",
-    ResnetModel(),
-    DEVICE=DEVICE,
-)
+
+def get_token():
+    with open("lichess/TOKEN.txt", "rt") as token_file:
+        return token_file.readline().strip("\n")
+
+
+def get_config():
+    with open("lichess/config.yaml") as config_file:
+        return yaml.safe_load(config_file)
+
+
+def get_args():
+    parser = argparse.ArgumentParser(description="Play on Lichess with a bot")
+    parser.add_argument(
+        "-l", "--logfile", help="Log file to append logs to.", default=None
+    )
+    parser.add_argument(
+        "-v",
+        help="Set logging level to verbose",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--run",
+        "-r",
+        type=str,
+        default="./runs/resnet_6b_256f_20t(3).pt",
+        help="Model to evaluate. Has to be .pt",
+    )
+    return parser.parse_args()
 
 
 def signal_handler(signal: int, frame):
@@ -57,7 +70,7 @@ def signal_handler(signal: int, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 
-def is_final(exception):
+def is_final(exception: Exception):
     return isinstance(exception, HTTPError) and exception.response.status_code < 500
 
 
@@ -101,7 +114,7 @@ def start(li, user_profile, config):
         if event["type"] == "terminated":
             break
         elif event["type"] == "challenge":
-            chlng = model.Challenge(event["challenge"])
+            chlng = li_model.Challenge(event["challenge"])
             if chlng.is_supported(challenge_config):
                 try:
                     logger.info("Accept {}".format(chlng))
@@ -120,7 +133,11 @@ def start(li, user_profile, config):
                 except:
                     pass
         elif event["type"] == "gameStart":
-            play_game(li, event["game"]["id"], user_profile, config)
+            game_process = Process(
+                target=play_game,
+                args=(li, event["game"]["id"], user_profile, config),
+            )
+            game_process.start()
 
     logger.info("Terminated")
     control_stream.terminate()
@@ -133,10 +150,12 @@ ponder_results = {}
 @backoff.on_exception(backoff.expo, BaseException, max_time=600, giveup=is_final)
 def play_game(li, game_id, user_profile, config):
     response = li.get_game_stream(game_id)
+    run = get_args().run
+    model = load_model_from_saved_run(run, device=DEVICE)
     lines = response.iter_lines()
     # Initial response of stream will be the full game info. Store it
     initial_state = json.loads(next(lines).decode("utf-8"))
-    game = model.Game(
+    game = li_model.Game(
         initial_state,
         user_profile["username"],
         li.baseUrl,
@@ -152,18 +171,28 @@ def play_game(li, game_id, user_profile, config):
     board = setup_board(game)
 
     logger.info("Game Details  :{}".format(game))
+    li.chat(
+        game_id,
+        "player",
+        "Thanks for helping us test our bot! Have fun and let us know how it went.",
+    )
 
     if is_engine_move(game, board.move_stack) and not is_game_over(game):
-        move = get_model_move(board, board.turn, MODEL)
-        board.push(move)
-        li.make_move(game.id, move.uci())
+        try:
+            move = get_model_move(board, board.turn, model)
+            board.push(move)
+            li.make_move(game.id, move.uci())
+        except Exception as e:
+            raise e
 
     while not terminated:
         try:
             binary_chunk = next(lines)
         except StopIteration:
             break
-        upd = json.loads(binary_chunk.decode("utf-8")) if binary_chunk else None
+        upd: dict | None = (
+            json.loads(binary_chunk.decode("utf-8")) if binary_chunk else None
+        )
         u_type = upd["type"] if upd else "ping"
         if not board.is_game_over():
             if u_type == "gameState":
@@ -171,7 +200,7 @@ def play_game(li, game_id, user_profile, config):
                 moves = upd["moves"].split()
                 board = update_board(board, moves[-1])
                 if not is_game_over(game) and is_engine_move(game, moves):
-                    move = get_model_move(board, board.turn, MODEL)
+                    move = get_model_move(board, board.turn, model)
                     board.push(move)
                     li.make_move(game.id, move.uci())
 
@@ -202,6 +231,8 @@ def play_game(li, game_id, user_profile, config):
                     break
         else:
             break
+    if board.is_game_over():
+        li.chat(game_id, "player", "Fun game! Wanna play again?")
     logger.info("game over")
 
 
@@ -248,19 +279,8 @@ def intro():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Play on Lichess with a bot")
-    parser.add_argument(
-        "--config", help="Specify a configuration file (defaults to ./config.yml)"
-    )
-    parser.add_argument(
-        "-l", "--logfile", help="Log file to append logs to.", default=None
-    )
-    parser.add_argument(
-        "-v",
-        help="Set logging level to verbose",
-        action="store_true",
-    )
-    args = parser.parse_args()
+    args = get_args()
+    config = get_config()
 
     logging.basicConfig(
         level=logging.DEBUG if args.v else logging.INFO,
@@ -268,7 +288,7 @@ if __name__ == "__main__":
         format="%(asctime)-15s: %(message)s",
     )
     logger.info(intro())
-    li = lichess.Lichess(TOKEN, CONFIG["url"], "1.2.0")
+    li = lichess.Lichess(get_token(), config["url"], "1.2.0")
 
     user_profile = li.get_profile()
     username = user_profile["username"]
@@ -279,7 +299,7 @@ if __name__ == "__main__":
         is_bot = upgrade_account(li)
 
     if is_bot:
-        start(li, user_profile, CONFIG)
+        start(li, user_profile, config)
     else:
         logger.error(
             "{} is not a bot account. Please upgrade it to a bot account!".format(
