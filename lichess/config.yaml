@@ -1,0 +1,22 @@
+url: "https://lichess.org/" # lichess base URL
+
+abort_time: 20 # time to abort a game in seconds when there is no activity
+rate_limiting_delay: 0 # time (in ms) to delay after sending a move to prevent "Too Many Requests" errors
+
+challenge: # incoming challenges
+  accept_bot: true # accepts challenges coming from other bots
+  max_increment: 180 # maximum amount of increment to accaept a challenge. the max is 180. set to 0 for no increment
+  min_increment: 0 # minimum amount of increment to accept a challenge
+  variants: # chess variants to accept (http://lichess.org/variant)
+    - standard
+    - fromPosition
+  time_controls: # time controls to accept
+    - bullet
+    - blitz
+    - rapid
+    - unlimited
+    - correspondence
+    - classical
+  modes: # game modes to accept
+    - casual # unrated games
+    - rated # rated games - must comment if the engine doesn't try to win
