@@ -3,7 +3,7 @@ import sys
 import torch
 from torch import nn
 
-from models import Linear, ResNet, SmallCNN, Transformer
+from models import Linear, ResNet, SmallCNN
 from models.large_cnn import LargeCNN
 
 
@@ -47,15 +47,5 @@ def get_empty_model(args, DEVICE) -> nn.Module:
             device=DEVICE,
             blocks=args.model_blocks or 10,
             num_filters=args.model_num_filters or 64,
-        )
-    if args.model == "Transformer":
-        return Transformer(
-            device=DEVICE,
-            num_heads=args.num_heads,
-            dim_feedforward=args.dim_feedforward,
-            num_layers_enc=args.num_layers_enc,
-            num_layers_dec=args.num_layers_dec,
-            dropout=args.dropout,
-            sequence_length=args.consecutive_positions,
         )
     raise Exception("Model {args.model} not found")
