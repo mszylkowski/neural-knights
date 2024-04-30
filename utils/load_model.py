@@ -7,11 +7,10 @@ from torch import nn
 import re
 from os import path
 
-from models import Linear, ResNet, SmallCNN, Transformer, LargeCNN
+from models import Linear, ResNet, LargeCNN
 
 
 def _try_load_model(model: nn.Module, state_dict: dict[str, torch.Tensor]) -> bool:
-    model_name = model.__class__.__name__
     try:
         model.load_state_dict(state_dict)
         return True
@@ -75,8 +74,6 @@ def get_empty_model(args, device: torch.device | None = None) -> nn.Module:
             hidden_size=args.model_hidden_size or 512,
             hidden_layers=args.model_hidden_layers or 2,
         )
-    if args.model == "SmallCNN":
-        return SmallCNN(device=device)
     if args.model == "ResNet":
         return ResNet(
             device=device,
@@ -88,15 +85,5 @@ def get_empty_model(args, device: torch.device | None = None) -> nn.Module:
             device=device,
             blocks=args.model_blocks or 10,
             num_filters=args.model_num_filters or 64,
-        )
-    if args.model == "Transformer":
-        return Transformer(
-            device=device,
-            num_heads=args.num_heads,
-            dim_feedforward=args.dim_feedforward,
-            num_layers_enc=args.num_layers_enc,
-            num_layers_dec=args.num_layers_dec,
-            dropout=args.dropout,
-            sequence_length=args.consecutive_positions,
         )
     raise Exception(f"Model {args.model} not found")
