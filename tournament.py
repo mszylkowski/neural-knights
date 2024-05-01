@@ -14,12 +14,9 @@ FENS = [
 ]
 
 MODELS_TO_TEST = [
-    "runs/resnet_6b_256f_20t.pt",
     "runs/resnet_6b_256f.pt",
     "runs/largecnn_10b_64f.pt",
-    "runs/linear_512h_6l.pt",
-    "runs/linear_512h_4l.pt",
-    "runs/linear_512h_2l(1).pt",
+    "runs/linear_1024h_10l.pt",
 ]
 
 if __name__ == "__main__":
