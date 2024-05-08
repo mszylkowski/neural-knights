@@ -47,7 +47,7 @@ def get_args():
         "--run",
         "-r",
         type=str,
-        default="./runs/resnet_6b_256f_20t(3).pt",
+        default="./runs/resnet_6b_256f.pt",
         help="Model to evaluate. Has to be .pt",
     )
     return parser.parse_args()

@@ -23,7 +23,7 @@ def get_args():
         "--run",
         "-r",
         type=str,
-        default="runs/resnet_10b_64f.pt",
+        default="runs/resnet_6b_64f.pt",
         help="File path of the model. Should be `runs/*.pt`.",
     )
     return parser.parse_args()
