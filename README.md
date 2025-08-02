@@ -1,10 +1,14 @@
-# DL Final Project - Neural Knights
+<h1 align="center">
+<img src="./assets/logo.png" width="200"><br>
+DL Final Project - Neural Knights
+</h1>
 
-![Pytorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
-![Python](https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue)
+<p align="center">
+<a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch"></a>
+<a href="https://python.org"><img src="https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue" alt="Python"></a>
+</p>
 
-![LOGO](./assets/logo.png)
-
+<p align="center">
 <a style="display:inline-flex;gap:10px;padding:5px 10px 5px 5px;background:#8883;border-radius:40px;line-height:20px" href="https://github.com/mszylkowski">
 <img src="https://avatars.githubusercontent.com/u/22420856" height="20" style="border-radius:50%">
 Matias Szylkowski
@@ -13,6 +17,7 @@ Matias Szylkowski
 <img src="https://avatars.githubusercontent.com/u/16889614" height="20" style="border-radius:50%">
 Reuven Brener
 </a>
+</p>
 
 ## Install instructions:
 
